@@ -1,20 +1,17 @@
 package com.zimaai.codetrace.toolwindow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zimaai.codetrace.model.TraceDocument;
+import com.zimaai.codetrace.model.TraceLink;
+import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
-import com.zimaai.codetrace.model.TraceVersion;
-import com.zimaai.codetrace.model.TraceVersionSource;
-import com.zimaai.codetrace.recording.TraceRecordingService;
 import com.zimaai.codetrace.storage.TraceJsonMapper;
 import com.zimaai.codetrace.storage.TraceStorageService;
 import java.nio.file.Path;
-import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -25,174 +22,80 @@ class CodeTraceControllerTest {
     Path tempDir;
 
     @Test
-    void refreshPromptsWhenDocumentIsDirty() {
+    void savesTraceAndNodeNotesDirectlyToDisk() {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
-        storage.save("trace-1.json", document("note"));
-        CodeTraceController controller = new CodeTraceController(
-                storage,
-                decision -> decision == UnsavedChangesDecision.DISCARD,
-                new TraceRecordingService(Clock.fixed(Instant.parse("2026-05-28T10:30:00Z"), ZoneOffset.UTC)),
-                node -> true);
+        storage.save("trace-1.json", documentWithThreeNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
 
         controller.load("trace-1.json");
-        controller.updateDescription("changed");
-        boolean refreshed = controller.refreshCurrentFile();
+        controller.saveDescription("saved trace note");
+        controller.saveNodeNote("node-1", "saved node note");
 
-        assertTrue(refreshed);
-        assertEquals("note", controller.state().currentDocument().description());
-        assertTrue(controller.state().dirtyHistory().contains(UnsavedChangesDecision.DISCARD));
+        TraceDocument reloaded = storage.load("trace-1.json");
+        assertEquals("saved trace note", reloaded.description());
+        assertEquals("saved node note", reloaded.nodes().stream()
+                .filter(node -> node.id().equals("node-1"))
+                .findFirst()
+                .orElseThrow()
+                .note());
     }
 
     @Test
-    void refreshDecisionSavePersistsAndReloads() {
+    void linksMoveAndDeleteOperateOnWholePair() {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
-        storage.save("trace-save.json", document("disk-note"));
-        CodeTraceController controller = new CodeTraceController(
-                storage,
-                decision -> true,
-                new TraceRecordingService(Clock.fixed(Instant.parse("2026-05-28T10:30:00Z"), ZoneOffset.UTC)),
-                node -> true);
-
-        controller.load("trace-save.json");
-        controller.updateDescription("edited-note");
-
-        boolean refreshed = controller.refreshWithDecision(UnsavedChangesDecision.SAVE);
-
-        assertTrue(refreshed);
-        assertEquals("edited-note", controller.state().currentDocument().description());
-        assertTrue(controller.state().dirtyHistory().contains(UnsavedChangesDecision.SAVE));
-        TraceDocument reloaded = storage.load("trace-save.json");
-        assertEquals("edited-note", reloaded.description());
-    }
-
-    @Test
-    void refreshDecisionCancelKeepsDirtyState() {
-        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
-        storage.save("trace-cancel.json", document("disk-note"));
-        CodeTraceController controller = new CodeTraceController(
-                storage,
-                decision -> true,
-                new TraceRecordingService(Clock.fixed(Instant.parse("2026-05-28T10:30:00Z"), ZoneOffset.UTC)),
-                node -> true);
-
-        controller.load("trace-cancel.json");
-        controller.updateDescription("edited-note");
-
-        boolean refreshed = controller.refreshWithDecision(UnsavedChangesDecision.CANCEL);
-
-        assertFalse(refreshed);
-        assertEquals("edited-note", controller.state().currentDocument().description());
-        assertTrue(controller.state().dirty());
-        assertTrue(controller.state().dirtyHistory().contains(UnsavedChangesDecision.CANCEL));
-    }
-
-    @Test
-    void updatesNodeNoteInCurrentVersion() {
-        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
-        storage.save("trace-2.json", documentWithNode("old-note"));
-        CodeTraceController controller = new CodeTraceController(
-                storage,
-                decision -> true,
-                new TraceRecordingService(Clock.fixed(Instant.parse("2026-05-28T10:30:00Z"), ZoneOffset.UTC)),
-                node -> true);
+        storage.save("trace-2.json", documentWithThreeNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
 
         controller.load("trace-2.json");
-        controller.updateNodeNote(0, "new-note");
+        controller.setPendingLinkSource("node-1");
+        controller.linkPendingSourceTo("node-2", TraceLinkKind.MANUAL);
 
-        assertEquals("new-note", controller.state().currentDocument().current().nodes().get(0).note());
-        assertTrue(controller.state().dirty());
+        assertEquals(1, controller.state().currentDocument().links().size());
+
+        int movedTo = controller.moveNodeOrPair("node-2", 1);
+        assertEquals(2, movedTo);
+        List<String> order = controller.state().currentDocument().nodes().stream()
+                .map(TraceNode::id)
+                .collect(Collectors.toList());
+        assertEquals(List.of("node-3", "node-1", "node-2"), order);
+
+        controller.deleteNodeOrPair("node-1");
+        assertEquals(List.of("node-3"), controller.state().currentDocument().nodes().stream()
+                .map(TraceNode::id)
+                .collect(Collectors.toList()));
+        assertTrue(controller.state().currentDocument().links().isEmpty());
     }
 
     @Test
-    void supportsNodeCrudAndReorderInCurrentVersion() {
+    void rejectsSecondLinkForAlreadyLinkedNode() {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
-        storage.save("trace-3.json", documentWithTwoNodes());
-        CodeTraceController controller = new CodeTraceController(
-                storage,
-                decision -> true,
-                new TraceRecordingService(Clock.fixed(Instant.parse("2026-05-28T10:30:00Z"), ZoneOffset.UTC)),
-                node -> true);
+        storage.save("trace-3.json", documentWithThreeNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
 
         controller.load("trace-3.json");
+        controller.setPendingLinkSource("node-1");
+        controller.linkPendingSourceTo("node-2", TraceLinkKind.MANUAL);
 
-        int inserted = controller.addNode(new TraceNode(
-                "n3", "C()", "C#c", "c()", "C.java", 30, "JAVA", "note-c", "C#c"));
-        assertEquals(2, inserted);
-        assertEquals(3, controller.state().currentDocument().current().nodes().size());
+        controller.setPendingLinkSource("node-1");
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> controller.linkPendingSourceTo("node-3", TraceLinkKind.MANUAL));
 
-        controller.updateNode(1, new TraceNode(
-                "n2", "B-updated()", "B#b", "b()", "B.java", 22, "JAVA", "note-b2", "B#b"));
-        assertEquals("B-updated()", controller.state().currentDocument().current().nodes().get(1).displayName());
-
-        int movedTo = controller.moveNode(2, -1);
-        assertEquals(1, movedTo);
-        List<String> names = controller.state().currentDocument().current().nodes().stream()
-                .map(TraceNode::displayName)
-                .collect(Collectors.toList());
-        assertEquals(List.of("A()", "C()", "B-updated()"), names);
-
-        controller.deleteNode(1);
-        assertEquals(2, controller.state().currentDocument().current().nodes().size());
-        assertEquals("B-updated()", controller.state().currentDocument().current().nodes().get(1).displayName());
-        assertTrue(controller.state().dirty());
+        assertEquals("Each node can participate in at most one link", exception.getMessage());
     }
 
-    private static TraceDocument document(String description) {
+    private static TraceDocument documentWithThreeNodes() {
         return new TraceDocument(
-                1, "trace-1", "Trace 1", description,
-                Instant.parse("2026-05-28T10:00:00Z"),
-                Instant.parse("2026-05-28T10:00:00Z"),
-                new TraceVersion(
-                        "v1",
-                        TraceVersionSource.MANUAL,
-                        Instant.parse("2026-05-28T10:00:00Z"),
-                        Instant.parse("2026-05-28T10:00:00Z"),
-                        true,
-                        List.of()),
-                List.of());
-    }
-
-    private static TraceDocument documentWithNode(String note) {
-        TraceNode node = new TraceNode(
-                "n1",
-                "login()",
-                "AuthService#login",
-                "login()",
-                "AuthService.java",
-                12,
-                "JAVA",
-                note,
-                "AuthService#login()");
-        return new TraceDocument(
-                1, "trace-2", "Trace 2", "description",
-                Instant.parse("2026-05-28T10:00:00Z"),
-                Instant.parse("2026-05-28T10:00:00Z"),
-                new TraceVersion(
-                        "v2",
-                        TraceVersionSource.MANUAL,
-                        Instant.parse("2026-05-28T10:00:00Z"),
-                        Instant.parse("2026-05-28T10:00:00Z"),
-                        true,
-                        List.of(node)),
-                List.of());
-    }
-
-    private static TraceDocument documentWithTwoNodes() {
-        TraceNode nodeA = new TraceNode(
-                "n1", "A()", "A#a", "a()", "A.java", 10, "JAVA", "note-a", "A#a");
-        TraceNode nodeB = new TraceNode(
-                "n2", "B()", "B#b", "b()", "B.java", 20, "JAVA", "note-b", "B#b");
-        return new TraceDocument(
-                1, "trace-3", "Trace 3", "description",
-                Instant.parse("2026-05-28T10:00:00Z"),
-                Instant.parse("2026-05-28T10:00:00Z"),
-                new TraceVersion(
-                        "v3",
-                        TraceVersionSource.MANUAL,
-                        Instant.parse("2026-05-28T10:00:00Z"),
-                        Instant.parse("2026-05-28T10:00:00Z"),
-                        true,
-                        List.of(nodeA, nodeB)),
-                List.of());
+                2,
+                "trace-1",
+                "Trace 1",
+                "note",
+                Instant.parse("2026-05-29T10:00:00Z"),
+                Instant.parse("2026-05-29T10:00:00Z"),
+                List.of(
+                        new TraceNode("node-1", "line 1", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a"),
+                        new TraceNode("node-2", "line 2", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b"),
+                        new TraceNode("node-3", "line 3", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c")),
+                List.<TraceLink>of());
     }
 }

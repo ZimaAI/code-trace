@@ -1,6 +1,6 @@
 package com.zimaai.codetrace.model;
 
-public enum TraceVersionSource {
+public enum TraceLinkKind {
     MANUAL,
-    RECORDING
+    DETECTED
 }

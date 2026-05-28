@@ -4,50 +4,103 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zimaai.codetrace.model.TraceDocument;
+import com.zimaai.codetrace.model.TraceLink;
+import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
-import com.zimaai.codetrace.model.TraceVersion;
-import com.zimaai.codetrace.model.TraceVersionSource;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class TraceJsonMapperTest {
     @Test
-    void writesAndReadsCurrentAndHistoryVersions() throws Exception {
-        TraceNode node = new TraceNode(
+    void migratesSchemaOneCurrentNodesIntoSchemaTwoDocument() throws Exception {
+        String legacyJson = """
+                {
+                  "schemaVersion": 1,
+                  "id": "trace-auth-login",
+                  "name": "Auth Login",
+                  "description": "legacy note",
+                  "createdAt": "2026-05-28T09:00:00Z",
+                  "updatedAt": "2026-05-28T10:00:00Z",
+                  "current": {
+                    "versionId": "v1",
+                    "source": "MANUAL",
+                    "recordedAt": "2026-05-28T10:00:00Z",
+                    "updatedAt": "2026-05-28T10:00:00Z",
+                    "nodeDedupEnabled": true,
+                    "nodes": [
+                      {
+                        "id": "node-1",
+                        "displayName": "return authService.login(user);",
+                        "qualifiedName": "AuthController#login",
+                        "signature": "login(User user)",
+                        "filePath": "src/AuthController.java",
+                        "line": 21,
+                        "language": "JAVA",
+                        "note": "legacy",
+                        "navigationHint": "AuthController#login(User)"
+                      }
+                    ]
+                  },
+                  "history": []
+                }
+                """;
+
+        TraceDocument restored = new TraceJsonMapper().read(legacyJson);
+
+        assertEquals(2, restored.schemaVersion());
+        assertEquals("Auth Login", restored.name());
+        assertEquals(1, restored.nodes().size());
+        assertEquals("return authService.login(user);", restored.nodes().get(0).displayName());
+        assertEquals(List.of(), restored.links());
+    }
+
+    @Test
+    void writesAndReadsSchemaTwoNodesAndLinks() throws Exception {
+        TraceNode source = new TraceNode(
                 "node-1",
-                "login()",
-                "com.example.AuthService.login",
-                "login(String username)",
-                "src/main/java/com/example/AuthService.java",
-                42,
+                "return authService.login(user);",
+                "AuthController#login",
+                "login(User user)",
+                "src/AuthController.java",
+                21,
                 "JAVA",
-                "entry point",
-                "com.example.AuthService#login(String)");
-        TraceVersion current = new TraceVersion(
-                "v1",
-                TraceVersionSource.RECORDING,
-                Instant.parse("2026-05-28T10:00:00Z"),
-                Instant.parse("2026-05-28T10:00:00Z"),
-                true,
-                List.of(node));
+                "source note",
+                "AuthController#login(User)");
+        TraceNode target = new TraceNode(
+                "node-2",
+                "public User login(User user) {",
+                "AuthService#login",
+                "login(User user)",
+                "src/AuthService.java",
+                14,
+                "JAVA",
+                "target note",
+                "AuthService#login(User)");
         TraceDocument document = new TraceDocument(
-                1,
+                2,
                 "trace-auth-login",
                 "Auth Login",
                 "trace note",
-                Instant.parse("2026-05-28T09:00:00Z"),
-                Instant.parse("2026-05-28T10:00:00Z"),
-                current,
-                List.of(current));
+                Instant.parse("2026-05-29T09:00:00Z"),
+                Instant.parse("2026-05-29T10:00:00Z"),
+                List.of(source, target),
+                List.of(new TraceLink(
+                        "link-1",
+                        "node-1",
+                        "node-2",
+                        Instant.parse("2026-05-29T10:00:00Z"),
+                        TraceLinkKind.DETECTED)));
 
         TraceJsonMapper mapper = new TraceJsonMapper();
         String json = mapper.write(document);
         TraceDocument restored = mapper.read(json);
 
-        assertTrue(json.contains("\"schemaVersion\" : 1"));
+        assertTrue(json.contains("\"schemaVersion\" : 2"));
         assertEquals("Auth Login", restored.name());
-        assertEquals("entry point", restored.current().nodes().get(0).note());
-        assertEquals(1, restored.history().size());
+        assertEquals(2, restored.nodes().size());
+        assertEquals("source note", restored.nodes().get(0).note());
+        assertEquals(1, restored.links().size());
+        assertEquals(TraceLinkKind.DETECTED, restored.links().get(0).kind());
     }
 }

@@ -1,64 +1,60 @@
-# Code-Trace 手工冒烟检查清单
+# Code-Trace Single-Version Node Linking Smoke Checklist
 
-## 启动
+## Startup
 
-1. 在项目根目录执行：
-   `.\gradlew.bat runIde`
-2. 等待 Sandbox IDEA 启动。
-3. 在 Sandbox IDEA 中打开任意含源码的项目。
+1. Run in project root: `.\gradlew.bat runIde`
+2. Wait for Sandbox IDEA to launch.
+3. Open any source project in Sandbox IDEA.
 
-## Tool Window 基础
+## Tool Window Basics
 
-1. 左侧工具栏可见 `code-trace`。
-2. 打开后能看到：
-   - 顶部按钮：`Start Recording / Stop Recording / Save / Refresh`
-   - 左侧文件列表
-   - 右侧编辑区（trace note、节点列表、node note、history）
+1. `code-trace` is visible in the left tool window bar.
+2. Open it and confirm visible controls:
+   - Top buttons: `Refresh / Save Trace Note / Save Node Note / Set as Source / Link To Here / Unlink`
+   - Left JSON file list
+   - Right trace note, node list, node note
+3. Confirm removed controls are not visible:
+   - `Start Recording`
+   - `Stop Recording`
+   - `Save`
+   - `Add Node`
+   - `History`
 
-## 文件管理
+## File Management
 
-1. 新建：新增 `new-trace.json`（或自定义名）并自动加载。
-2. 重命名：文件名变化后仍保持选中。
-3. 复制：生成 `*-copy.json`。
-4. 删除：确认后移除文件。
-5. 刷新：外部改 JSON 后点击 `Refresh` 能重载。
-6. 刷新冲突：当本地有未保存改动，点击 `Refresh` 出现三种选择：
-   - `Save and Refresh`
-   - `Discard and Refresh`
-   - `Cancel`
+1. `New`, `Rename`, `Copy`, `Delete`, `Refresh` all work from the left pane.
+2. Refresh keeps current file selected.
+3. If a v1 JSON is modified externally, `Refresh` still loads nodes through migration.
 
-## 录制流程
+## Note Save
 
-1. 点击 `Start Recording`。
-2. 在编辑器执行 2-3 次方法跳转（如 `Ctrl+B`）。
-3. 点击 `Stop Recording`。
-4. 当前版本节点列表出现新节点；再次录制后历史列表新增一项。
+1. Edit trace note and verify `Save Trace Note` becomes enabled.
+2. Click save, reopen file, and confirm trace note is persisted.
+3. Select a node, edit node note, and verify `Save Node Note` becomes enabled.
+4. Click save, refresh file, and confirm node note is persisted.
 
-## 节点编辑能力
+## Nodes And Links
 
-1. `Add Node`：弹窗填写字段，节点加入列表。
-2. `Edit Node`：修改 display name / line / note 后保存，列表更新。
-3. `Delete Node`：删除选中节点。
-4. `Move Up / Move Down`：顺序正确变化。
-5. 选中节点修改 `node note`，点击 `Save` 后重启 Sandbox 再看，备注仍在。
+1. Every node row text is exactly one line of code (`displayName`).
+2. Select one node and click `Set as Source`; link status shows source id.
+3. Select another node and click `Link To Here`; source/target styling appears.
+4. Click `Unlink`; linked styling is removed.
+5. For linked nodes, `Move Up / Move Down / Delete` affects the pair.
 
-## 历史版本视图
+## Editor Popup Action
 
-1. 在 history 列表点击 `Current` 和任意 `History`。
-2. 节点列表能切换到对应版本内容。
-3. 在 `History` 视图下：
-   - `node note` 为只读
-   - 节点增删改和排序按钮不可用
+1. Right-click in editor and find `Add to code-trace`.
+2. Ensure a JSON is selected in Tool Window before triggering the action.
+3. Current line is added as a node and matches editor line text.
+4. If target confirmation appears and you choose `Yes`, target node and `DETECTED` link are created.
 
-## 跳转验证
+## Navigation
 
-1. 双击当前节点：编辑器定位到目标文件与行。
-2. 双击历史节点：同样可定位（若代码已变动可接受失败提示）。
+1. Double-click a node and verify editor navigates to file and line.
+2. If code moved externally, failure is user-visible and tool window remains stable.
 
-## 自动化回归
+## Regression
 
-执行：
+Run: `.\gradlew.bat test`
 
-`.\gradlew.bat test`
-
-期望：`BUILD SUCCESSFUL`
+Expected: `BUILD SUCCESSFUL`

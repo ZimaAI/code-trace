@@ -16,6 +16,9 @@ class PluginDescriptorTest {
             assertTrue(xml.contains("<toolWindow"));
             assertTrue(xml.contains("id=\"code-trace\""));
             assertTrue(xml.contains("factoryClass=\"com.zimaai.codetrace.toolwindow.CodeTraceToolWindowFactory\""));
+            assertTrue(xml.contains("serviceImplementation=\"com.zimaai.codetrace.toolwindow.CodeTraceProjectService\""));
+            assertTrue(xml.contains("class=\"com.zimaai.codetrace.actions.AddToCodeTraceAction\""));
+            assertTrue(xml.contains("group-id=\"EditorPopupMenu\""));
         }
     }
 }

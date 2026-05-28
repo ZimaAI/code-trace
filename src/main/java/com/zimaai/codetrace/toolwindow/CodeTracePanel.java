@@ -1,14 +1,9 @@
 package com.zimaai.codetrace.toolwindow;
 
-import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBSplitter;
-import com.intellij.ui.components.JBList;
-import com.intellij.ui.components.JBTextArea;
+import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
-import com.zimaai.codetrace.model.TraceVersion;
 import java.awt.BorderLayout;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,9 +11,6 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
@@ -26,42 +18,21 @@ public final class CodeTracePanel {
     private final CodeTraceController controller;
     private final JPanel root = new JPanel(new BorderLayout());
     private final Map<String, JButton> buttons = new HashMap<>();
-    private final TraceFileListPanel fileListPanel;
-    private final TraceEditorPanel editorPanel;
-    private final HistoryListPanel historyPanel;
-    private boolean showingHistoryVersion;
-    private int selectedHistoryIndex = -1;
+    private final TraceFileListPanel fileListPanel = new TraceFileListPanel();
+    private final TraceEditorPanel editorPanel = new TraceEditorPanel();
+    private boolean syncingTraceNote;
+    private boolean syncingNodeNote;
+    private String selectedNodeId;
 
-    public CodeTracePanel(Project project, CodeTraceController controller) {
+    public CodeTracePanel(CodeTraceController controller) {
         this.controller = controller;
-
-        this.fileListPanel = new TraceFileListPanel();
-        this.editorPanel = new TraceEditorPanel();
-        this.historyPanel = new HistoryListPanel();
+        editorPanel.nodeList().setCellRenderer(
+                new LinkedNodeListCellRenderer(() -> controller.state().currentDocument(), () -> controller.state().pendingLinkSourceId()));
         configureLeftPaneActions();
+        configureLayout();
         wireSelection();
-        wireNoteEditor();
-        wireNodeNavigation();
-        wireHistorySelection();
-        wireNodeNoteEditor();
+        wireNoteButtons();
         wireNodeActions();
-
-        JPanel toolbar = new JPanel();
-        addButton(toolbar, "Start Recording", controller::startRecording);
-        addButton(toolbar, "Stop Recording", controller::stopRecording);
-        addButton(toolbar, "Save", controller::saveCurrentFile);
-        addButton(toolbar, "Refresh", this::refreshAndRepaint);
-
-        JBSplitter right = new JBSplitter(true, 0.75f);
-        right.setFirstComponent(editorPanel.component());
-        right.setSecondComponent(historyPanel.component());
-
-        JBSplitter split = new JBSplitter(false, 0.25f);
-        split.setFirstComponent(fileListPanel.component());
-        split.setSecondComponent(right);
-
-        root.add(toolbar, BorderLayout.NORTH);
-        root.add(split, BorderLayout.CENTER);
     }
 
     public JComponent getComponent() {
@@ -74,20 +45,12 @@ public final class CodeTracePanel {
 
     public void reloadFromDisk() {
         controller.ensureAnyFileLoaded();
-        showingHistoryVersion = false;
-        selectedHistoryIndex = -1;
         rebuildView();
     }
 
-    public com.zimaai.codetrace.model.TraceDocument currentDocument() {
-        return controller.state().currentDocument();
-    }
-
-    private void addButton(JPanel toolbar, String label, Runnable action) {
-        JButton button = new JButton(label);
-        button.addActionListener(event -> action.run());
-        buttons.put(label, button);
-        toolbar.add(button);
+    public void refreshFromExternalAction() {
+        controller.refreshCurrentFile();
+        rebuildView();
     }
 
     private void configureLeftPaneActions() {
@@ -99,131 +62,106 @@ public final class CodeTracePanel {
                 this::refreshAndRepaint);
     }
 
+    private void configureLayout() {
+        JPanel toolbar = new JPanel();
+        addButton(toolbar, "Refresh", this::refreshAndRepaint);
+        addButton(toolbar, "Save Trace Note", this::saveTraceNote);
+        addButton(toolbar, "Save Node Note", this::saveNodeNote);
+        addButton(toolbar, "Set as Source", this::setSelectedAsSource);
+        addButton(toolbar, "Link To Here", this::linkToSelectedNode);
+        addButton(toolbar, "Unlink", this::unlinkSelectedNode);
+
+        JBSplitter split = new JBSplitter(false, 0.25f);
+        split.setFirstComponent(fileListPanel.component());
+        split.setSecondComponent(editorPanel.component());
+
+        root.add(toolbar, BorderLayout.NORTH);
+        root.add(split, BorderLayout.CENTER);
+    }
+
     private void wireSelection() {
-        JBList<String> list = fileListPanel.list();
-        list.addListSelectionListener(event -> {
+        fileListPanel.list().addListSelectionListener(event -> {
             if (event.getValueIsAdjusting()) {
                 return;
             }
-            String selected = list.getSelectedValue();
+            String selected = fileListPanel.list().getSelectedValue();
             if (selected == null || selected.equals(controller.state().currentFileName())) {
                 return;
             }
             controller.load(selected);
             rebuildView();
         });
-    }
 
-    private void wireNoteEditor() {
-        JBTextArea note = editorPanel.traceNote();
-        note.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                updateTraceNote();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                updateTraceNote();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                updateTraceNote();
-            }
-
-            private void updateTraceNote() {
-                if (!note.hasFocus()) {
-                    return;
-                }
-                controller.updateDescription(note.getText());
-                refreshHistory();
-            }
-        });
-    }
-
-    private void wireNodeNavigation() {
-        editorPanel.nodeList().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent event) {
-                if (event.getClickCount() != 2) {
-                    return;
-                }
-                int index = editorPanel.nodeList().locationToIndex(event.getPoint());
-                TraceVersion version = getDisplayedVersion();
-                if (version == null || index < 0 || index >= version.nodes().size()) {
-                    return;
-                }
-                controller.navigateToNode(version.nodes().get(index));
-            }
-        });
-    }
-
-    private void wireHistorySelection() {
-        historyPanel.list().addListSelectionListener(new ListSelectionListener() {
-            @Override
-            public void valueChanged(ListSelectionEvent event) {
-                if (event.getValueIsAdjusting()) {
-                    return;
-                }
-                int index = historyPanel.list().getSelectedIndex();
-                if (index <= 0) {
-                    showingHistoryVersion = false;
-                    selectedHistoryIndex = -1;
-                } else {
-                    showingHistoryVersion = true;
-                    selectedHistoryIndex = index - 1;
-                }
-                rebuildNodeListAndNodeNote();
-            }
-        });
-    }
-
-    private void wireNodeNoteEditor() {
         editorPanel.nodeList().addListSelectionListener(event -> {
             if (event.getValueIsAdjusting()) {
                 return;
             }
-            refreshSelectedNodeNote();
+            TraceNode selected = editorPanel.nodeList().getSelectedValue();
+            selectedNodeId = selected == null ? null : selected.id();
+            syncSelectedNodeNote();
+            refreshButtons();
         });
 
-        JBTextArea nodeNote = editorPanel.nodeNote();
-        nodeNote.getDocument().addDocumentListener(new DocumentListener() {
+        editorPanel.nodeList().addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent event) {
+                if (event.getClickCount() == 2 && editorPanel.nodeList().getSelectedValue() != null) {
+                    controller.navigateToNode(editorPanel.nodeList().getSelectedValue());
+                }
+            }
+        });
+    }
+
+    private void wireNoteButtons() {
+        editorPanel.traceNote().getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
-                updateNodeNote();
+                refreshButtons();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
-                updateNodeNote();
+                refreshButtons();
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
-                updateNodeNote();
+                refreshButtons();
+            }
+        });
+        editorPanel.nodeNote().getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                refreshButtons();
             }
 
-            private void updateNodeNote() {
-                if (!nodeNote.hasFocus() || showingHistoryVersion) {
-                    return;
-                }
-                int index = editorPanel.nodeList().getSelectedIndex();
-                if (index < 0) {
-                    return;
-                }
-                controller.updateNodeNote(index, nodeNote.getText());
-                refreshHistory();
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                refreshButtons();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                refreshButtons();
             }
         });
     }
 
     private void wireNodeActions() {
-        editorPanel.addNodeButton().addActionListener(event -> addNode());
         editorPanel.editNodeButton().addActionListener(event -> editSelectedNode());
         editorPanel.deleteNodeButton().addActionListener(event -> deleteSelectedNode());
         editorPanel.moveUpButton().addActionListener(event -> moveSelectedNode(-1));
         editorPanel.moveDownButton().addActionListener(event -> moveSelectedNode(1));
+        editorPanel.setAsSourceButton().addActionListener(event -> setSelectedAsSource());
+        editorPanel.linkToHereButton().addActionListener(event -> linkToSelectedNode());
+        editorPanel.unlinkButton().addActionListener(event -> unlinkSelectedNode());
+    }
+
+    private void addButton(JPanel toolbar, String label, Runnable action) {
+        JButton button = new JButton(label);
+        button.addActionListener(event -> action.run());
+        buttons.put(label, button);
+        toolbar.add(button);
     }
 
     private void createFile() {
@@ -263,8 +201,6 @@ public final class CodeTracePanel {
         }
         String normalized = newName.endsWith(".json") ? newName : newName + ".json";
         controller.copyCurrentFile(normalized);
-        showingHistoryVersion = false;
-        selectedHistoryIndex = -1;
         rebuildView();
     }
 
@@ -283,79 +219,63 @@ public final class CodeTracePanel {
         }
         controller.deleteCurrentFile();
         controller.ensureAnyFileLoaded();
-        showingHistoryVersion = false;
-        selectedHistoryIndex = -1;
         rebuildView();
     }
 
     private void refreshAndRepaint() {
-        if (controller.hasUnsavedChanges()) {
-            UnsavedChangesDecision decision = askRefreshDecision();
-            controller.recordDecision(decision);
-            if (!controller.refreshWithDecision(decision)) {
-                return;
-            }
-        } else {
-            controller.refreshCurrentFile();
-        }
-        showingHistoryVersion = false;
-        selectedHistoryIndex = -1;
+        controller.refreshCurrentFile();
         rebuildView();
     }
 
-    private UnsavedChangesDecision askRefreshDecision() {
-        Object[] options = {"Save and Refresh", "Discard and Refresh", "Cancel"};
-        int choice = JOptionPane.showOptionDialog(
-                root,
-                "There are unsaved changes. Choose how to continue refresh.",
-                "Unsaved Changes",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.WARNING_MESSAGE,
-                null,
-                options,
-                options[0]);
-        return switch (choice) {
-            case 0 -> UnsavedChangesDecision.SAVE;
-            case 1 -> UnsavedChangesDecision.DISCARD;
-            default -> UnsavedChangesDecision.CANCEL;
-        };
+    private void saveTraceNote() {
+        if (controller.state().currentDocument() == null) {
+            return;
+        }
+        controller.saveDescription(editorPanel.traceNote().getText());
+        rebuildView();
     }
 
-    private void addNode() {
-        if (showingHistoryVersion) {
+    private void saveNodeNote() {
+        if (selectedNodeId == null) {
             return;
         }
-        NodeInput input = showNodeDialog("Add Node", null);
-        if (input == null) {
-            return;
-        }
-        TraceNode node = new TraceNode(
-                "manual-" + System.nanoTime(),
-                input.displayName(),
-                input.qualifiedName(),
-                input.signature(),
-                input.filePath(),
-                input.line(),
-                input.language(),
-                input.note(),
-                input.navigationHint());
-        int index = controller.addNode(node);
+        controller.saveNodeNote(selectedNodeId, editorPanel.nodeNote().getText());
         rebuildView();
-        if (index >= 0) {
-            editorPanel.nodeList().setSelectedIndex(index);
+    }
+
+    private void setSelectedAsSource() {
+        if (selectedNodeId == null) {
+            return;
         }
+        controller.setPendingLinkSource(selectedNodeId);
+        rebuildView();
+    }
+
+    private void linkToSelectedNode() {
+        if (selectedNodeId == null || controller.state().pendingLinkSourceId() == null) {
+            return;
+        }
+        try {
+            controller.linkPendingSourceTo(selectedNodeId, TraceLinkKind.MANUAL);
+        } catch (IllegalArgumentException exception) {
+            JOptionPane.showMessageDialog(root, exception.getMessage());
+        }
+        rebuildView();
+    }
+
+    private void unlinkSelectedNode() {
+        if (selectedNodeId == null) {
+            return;
+        }
+        controller.unlinkNode(selectedNodeId);
+        rebuildView();
     }
 
     private void editSelectedNode() {
-        if (showingHistoryVersion) {
+        TraceNode existing = editorPanel.nodeList().getSelectedValue();
+        if (existing == null) {
             return;
         }
-        int index = editorPanel.nodeList().getSelectedIndex();
-        TraceVersion version = getDisplayedVersion();
-        if (version == null || index < 0 || index >= version.nodes().size()) {
-            return;
-        }
-        TraceNode existing = version.nodes().get(index);
         NodeInput input = showNodeDialog("Edit Node", existing);
         if (input == null) {
             return;
@@ -370,47 +290,43 @@ public final class CodeTracePanel {
                 input.language(),
                 input.note(),
                 input.navigationHint());
-        controller.updateNode(index, updated);
+        controller.updateNode(updated);
         rebuildView();
-        editorPanel.nodeList().setSelectedIndex(index);
+        selectNode(existing.id());
     }
 
     private void deleteSelectedNode() {
-        if (showingHistoryVersion) {
+        if (selectedNodeId == null) {
             return;
         }
-        int index = editorPanel.nodeList().getSelectedIndex();
-        if (index < 0) {
-            return;
-        }
-        controller.deleteNode(index);
+        controller.deleteNodeOrPair(selectedNodeId);
         rebuildView();
-        int nextIndex = Math.max(0, index - 1);
-        if (editorPanel.nodeList().getModel().getSize() > 0) {
-            editorPanel.nodeList().setSelectedIndex(Math.min(nextIndex, editorPanel.nodeList().getModel().getSize() - 1));
-        }
     }
 
     private void moveSelectedNode(int offset) {
-        if (showingHistoryVersion) {
+        if (selectedNodeId == null) {
             return;
         }
-        int index = editorPanel.nodeList().getSelectedIndex();
-        if (index < 0) {
-            return;
-        }
-        int movedTo = controller.moveNode(index, offset);
+        controller.moveNodeOrPair(selectedNodeId, offset);
         rebuildView();
-        if (movedTo >= 0 && movedTo < editorPanel.nodeList().getModel().getSize()) {
-            editorPanel.nodeList().setSelectedIndex(movedTo);
+        selectNode(selectedNodeId);
+    }
+
+    private void selectNode(String nodeId) {
+        var model = editorPanel.nodeList().getModel();
+        for (int i = 0; i < model.getSize(); i++) {
+            if (model.getElementAt(i).id().equals(nodeId)) {
+                editorPanel.nodeList().setSelectedIndex(i);
+                return;
+            }
         }
     }
 
     private NodeInput showNodeDialog(String title, TraceNode initial) {
-        JBTextArea fileField = new JBTextArea(initial == null ? "" : initial.filePath());
         javax.swing.JTextField nameField = new javax.swing.JTextField(initial == null ? "" : initial.displayName());
         javax.swing.JTextField qualifiedField = new javax.swing.JTextField(initial == null ? "" : initial.qualifiedName());
         javax.swing.JTextField signatureField = new javax.swing.JTextField(initial == null ? "" : initial.signature());
+        javax.swing.JTextField fileField = new javax.swing.JTextField(initial == null ? "" : initial.filePath());
         javax.swing.JTextField lineField = new javax.swing.JTextField(initial == null ? "1" : Integer.toString(initial.line()));
         javax.swing.JTextField languageField = new javax.swing.JTextField(initial == null ? "UNKNOWN" : initial.language());
         javax.swing.JTextField hintField = new javax.swing.JTextField(initial == null ? "" : initial.navigationHint());
@@ -449,105 +365,84 @@ public final class CodeTracePanel {
                 qualifiedField.getText().trim(),
                 signatureField.getText().trim(),
                 fileField.getText().trim(),
-                Math.max(line, 1),
+                Math.max(1, line),
                 languageField.getText().trim().isEmpty() ? "UNKNOWN" : languageField.getText().trim(),
                 noteField.getText(),
                 hintField.getText().trim());
     }
 
-    private void refreshHistory() {
-        var document = controller.state().currentDocument();
-        if (document == null) {
-            historyPanel.list().setListData(new String[0]);
-            return;
-        }
-        String[] entries = new String[document.history().size() + 1];
-        entries[0] = "Current: " + (document.current() == null ? "-" : document.current().versionId());
-        for (int i = 0; i < document.history().size(); i++) {
-            var version = document.history().get(i);
-            entries[i + 1] = "History: " + version.versionId() + " (" + version.source() + ")";
-        }
-        historyPanel.list().setListData(entries);
-        if (showingHistoryVersion && selectedHistoryIndex >= 0 && selectedHistoryIndex + 1 < entries.length) {
-            historyPanel.list().setSelectedIndex(selectedHistoryIndex + 1);
-        } else {
-            historyPanel.list().setSelectedIndex(0);
-        }
-    }
-
-    private TraceVersion getDisplayedVersion() {
-        var document = controller.state().currentDocument();
-        if (document == null) {
-            return null;
-        }
-        if (showingHistoryVersion) {
-            if (selectedHistoryIndex < 0 || selectedHistoryIndex >= document.history().size()) {
-                return null;
-            }
-            return document.history().get(selectedHistoryIndex);
-        }
-        return document.current();
-    }
-
-    private void rebuildNodeListAndNodeNote() {
-        TraceVersion version = getDisplayedVersion();
-        if (version == null) {
-            editorPanel.nodeList().setListData(new String[0]);
-            editorPanel.nodeNote().setText("");
-            editorPanel.nodeNote().setEditable(false);
-            setNodeActionEnabled(false);
-            return;
-        }
-        String[] nodes = version.nodes().stream()
-                .map(node -> node.displayName() + " @ " + node.filePath() + ":" + node.line())
-                .toArray(String[]::new);
-        editorPanel.nodeList().setListData(nodes);
-        editorPanel.nodeNote().setEditable(!showingHistoryVersion);
-        setNodeActionEnabled(!showingHistoryVersion);
-        if (nodes.length > 0) {
-            editorPanel.nodeList().setSelectedIndex(0);
-        } else {
-            editorPanel.nodeNote().setText("");
-        }
-    }
-
-    private void refreshSelectedNodeNote() {
-        int index = editorPanel.nodeList().getSelectedIndex();
-        TraceVersion version = getDisplayedVersion();
-        if (version == null || index < 0 || index >= version.nodes().size()) {
-            editorPanel.nodeNote().setText("");
-            return;
-        }
-        String note = version.nodes().get(index).note();
-        editorPanel.nodeNote().setText(note == null ? "" : note);
-    }
-
     private void rebuildView() {
-        SwingUtilities.invokeLater(() -> {
-            List<String> files = controller.loadFileNames();
-            fileListPanel.list().setListData(files.toArray(String[]::new));
+        if (controller.state().currentFileName() == null) {
+            controller.ensureAnyFileLoaded();
+        }
+        List<String> files = controller.loadFileNames();
+        fileListPanel.list().setListData(files.toArray(String[]::new));
 
-            var document = controller.state().currentDocument();
-            if (document != null) {
-                if (controller.state().currentFileName() != null) {
-                    fileListPanel.list().setSelectedValue(controller.state().currentFileName(), true);
-                }
-                editorPanel.traceNote().setText(document.description() == null ? "" : document.description());
-            } else {
-                editorPanel.traceNote().setText("");
-            }
+        var document = controller.state().currentDocument();
+        if (document == null) {
+            syncingTraceNote = true;
+            editorPanel.traceNote().setText("");
+            syncingTraceNote = false;
+            editorPanel.nodeList().setListData(new TraceNode[0]);
+            syncingNodeNote = true;
+            editorPanel.nodeNote().setText("");
+            syncingNodeNote = false;
+            editorPanel.linkStatus().setText("Link source: none");
+            refreshButtons();
+            return;
+        }
 
-            refreshHistory();
-            rebuildNodeListAndNodeNote();
-        });
+        if (controller.state().currentFileName() != null) {
+            fileListPanel.list().setSelectedValue(controller.state().currentFileName(), true);
+        }
+
+        syncingTraceNote = true;
+        editorPanel.traceNote().setText(document.description() == null ? "" : document.description());
+        syncingTraceNote = false;
+
+        editorPanel.nodeList().setListData(document.nodes().toArray(TraceNode[]::new));
+        editorPanel.linkStatus().setText("Link source: "
+                + (controller.state().pendingLinkSourceId() == null ? "none" : controller.state().pendingLinkSourceId()));
+
+        syncSelectedNodeNote();
+        refreshButtons();
     }
 
-    private void setNodeActionEnabled(boolean enabled) {
-        editorPanel.addNodeButton().setEnabled(enabled);
-        editorPanel.editNodeButton().setEnabled(enabled);
-        editorPanel.deleteNodeButton().setEnabled(enabled);
-        editorPanel.moveUpButton().setEnabled(enabled);
-        editorPanel.moveDownButton().setEnabled(enabled);
+    private void syncSelectedNodeNote() {
+        TraceNode selected = editorPanel.nodeList().getSelectedValue();
+        syncingNodeNote = true;
+        editorPanel.nodeNote().setText(selected == null || selected.note() == null ? "" : selected.note());
+        syncingNodeNote = false;
+    }
+
+    private void refreshButtons() {
+        var document = controller.state().currentDocument();
+        boolean hasDocument = document != null;
+        boolean hasSelection = editorPanel.nodeList().getSelectedValue() != null;
+        boolean hasPendingSource = controller.state().pendingLinkSourceId() != null;
+
+        if (hasDocument && !syncingTraceNote) {
+            String persistedTraceNote = document.description() == null ? "" : document.description();
+            editorPanel.saveTraceNoteButton().setEnabled(!persistedTraceNote.equals(editorPanel.traceNote().getText()));
+        } else {
+            editorPanel.saveTraceNoteButton().setEnabled(false);
+        }
+
+        if (hasSelection && !syncingNodeNote) {
+            TraceNode selectedNode = editorPanel.nodeList().getSelectedValue();
+            String persistedNodeNote = selectedNode.note() == null ? "" : selectedNode.note();
+            editorPanel.saveNodeNoteButton().setEnabled(!persistedNodeNote.equals(editorPanel.nodeNote().getText()));
+        } else {
+            editorPanel.saveNodeNoteButton().setEnabled(false);
+        }
+
+        editorPanel.editNodeButton().setEnabled(hasSelection);
+        editorPanel.deleteNodeButton().setEnabled(hasSelection);
+        editorPanel.moveUpButton().setEnabled(hasSelection);
+        editorPanel.moveDownButton().setEnabled(hasSelection);
+        editorPanel.setAsSourceButton().setEnabled(hasSelection);
+        editorPanel.linkToHereButton().setEnabled(hasSelection && hasPendingSource);
+        editorPanel.unlinkButton().setEnabled(hasSelection);
     }
 
     private record NodeInput(

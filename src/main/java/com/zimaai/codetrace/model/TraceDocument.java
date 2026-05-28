@@ -10,6 +10,6 @@ public record TraceDocument(
         String description,
         Instant createdAt,
         Instant updatedAt,
-        TraceVersion current,
-        List<TraceVersion> history) {
+        List<TraceNode> nodes,
+        List<TraceLink> links) {
 }

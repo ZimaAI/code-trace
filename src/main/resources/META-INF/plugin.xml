@@ -7,10 +7,20 @@
     <depends optional="true">com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceImplementation="com.zimaai.codetrace.toolwindow.CodeTraceProjectService"/>
         <toolWindow
                 id="code-trace"
                 anchor="left"
                 factoryClass="com.zimaai.codetrace.toolwindow.CodeTraceToolWindowFactory"
                 icon="AllIcons.Toolwindows.ToolWindowMessages"/>
     </extensions>
+
+    <actions>
+        <action
+                id="com.zimaai.codetrace.actions.AddToCodeTraceAction"
+                class="com.zimaai.codetrace.actions.AddToCodeTraceAction"
+                text="Add to code-trace">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>

@@ -1,14 +1,14 @@
 package com.zimaai.codetrace.toolwindow;
 
 import com.zimaai.codetrace.model.TraceDocument;
+import com.zimaai.codetrace.model.TraceLink;
+import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
-import com.zimaai.codetrace.model.TraceVersion;
-import com.zimaai.codetrace.model.TraceVersionSource;
-import com.zimaai.codetrace.recording.TraceRecordingService;
 import com.zimaai.codetrace.storage.TraceStorageService;
-import java.util.ArrayList;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -16,28 +16,17 @@ import java.util.function.Function;
 
 public final class CodeTraceController {
     private final TraceStorageService storage;
-    private final Function<UnsavedChangesDecision, Boolean> refreshPermission;
-    private final TraceRecordingService recordingService;
     private final Function<TraceNode, Boolean> navigationHandler;
+    private final TraceDocumentEditor editor = new TraceDocumentEditor();
     private final CodeTraceState state = new CodeTraceState();
 
-    public CodeTraceController(
-            TraceStorageService storage,
-            Function<UnsavedChangesDecision, Boolean> refreshPermission,
-            TraceRecordingService recordingService,
-            Function<TraceNode, Boolean> navigationHandler) {
+    public CodeTraceController(TraceStorageService storage, Function<TraceNode, Boolean> navigationHandler) {
         this.storage = Objects.requireNonNull(storage, "storage");
-        this.refreshPermission = Objects.requireNonNull(refreshPermission, "refreshPermission");
-        this.recordingService = Objects.requireNonNull(recordingService, "recordingService");
         this.navigationHandler = Objects.requireNonNull(navigationHandler, "navigationHandler");
     }
 
     public List<String> loadFileNames() {
         return storage.listFiles();
-    }
-
-    public void loadFile(String fileName, TraceDocument document) {
-        state.load(fileName, document);
     }
 
     public TraceDocument load(String fileName) {
@@ -46,245 +35,86 @@ public final class CodeTraceController {
         return document;
     }
 
-    public boolean refreshCurrentFile() {
-        if (state.currentFileName() == null) {
-            return false;
-        }
-        if (state.dirty()) {
-            UnsavedChangesDecision decision = UnsavedChangesDecision.DISCARD;
-            state.recordDecision(decision);
-            boolean confirmed = refreshPermission.apply(decision);
-            if (!confirmed) {
-                return false;
-            }
-        }
-        state.load(state.currentFileName(), storage.load(state.currentFileName()));
-        return true;
-    }
-
-    public boolean refreshWithDecision(UnsavedChangesDecision decision) {
-        if (state.currentFileName() == null) {
-            return false;
-        }
-        if (!state.dirty()) {
+    public void refreshCurrentFile() {
+        if (state.currentFileName() != null) {
             state.load(state.currentFileName(), storage.load(state.currentFileName()));
-            return true;
-        }
-        if (decision == null) {
-            return false;
-        }
-        recordDecision(decision);
-        if (decision == UnsavedChangesDecision.CANCEL) {
-            return false;
-        }
-        if (decision == UnsavedChangesDecision.SAVE) {
-            saveCurrentFile();
-        }
-        if (decision != UnsavedChangesDecision.DISCARD && decision != UnsavedChangesDecision.SAVE) {
-            return false;
-        }
-        state.load(state.currentFileName(), storage.load(state.currentFileName()));
-        return true;
-    }
-
-    public boolean hasUnsavedChanges() {
-        return state.dirty();
-    }
-
-    public void recordDecision(UnsavedChangesDecision decision) {
-        if (decision != null) {
-            state.recordDecision(decision);
         }
     }
 
-    public void saveCurrentFile() {
-        if (state.currentFileName() == null || state.currentDocument() == null) {
-            return;
-        }
-        storage.save(state.currentFileName(), state.currentDocument());
-        state.markSaved(state.currentDocument());
+    public void saveDescription(String description) {
+        TraceDocument updated = editor.saveDescription(requireDocument(), description, Instant.now());
+        persist(updated);
     }
 
-    public void updateDescription(String description) {
-        TraceDocument current = state.currentDocument();
-        if (current == null) {
-            return;
-        }
-        TraceDocument updated = new TraceDocument(
-                current.schemaVersion(),
-                current.id(),
-                current.name(),
-                description,
-                current.createdAt(),
-                Instant.now(),
-                current.current(),
-                current.history());
-        state.markDirty(updated);
-        if (state.autoSaveEnabled()) {
-            saveCurrentFile();
-        }
-    }
-
-    public void updateNodeNote(int nodeIndex, String note) {
-        TraceDocument document = state.currentDocument();
-        if (document == null) {
-            return;
-        }
-        TraceVersion currentVersion = ensureCurrentVersion(document);
-        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
-        if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
-            return;
-        }
-        TraceNode node = nodes.get(nodeIndex);
-        TraceNode updatedNode = new TraceNode(
-                node.id(),
-                node.displayName(),
-                node.qualifiedName(),
-                node.signature(),
-                node.filePath(),
-                node.line(),
-                node.language(),
-                note,
-                node.navigationHint());
-        nodes.set(nodeIndex, updatedNode);
-        TraceVersion updatedVersion = new TraceVersion(
-                currentVersion.versionId(),
-                currentVersion.source(),
-                currentVersion.recordedAt(),
-                Instant.now(),
-                currentVersion.nodeDedupEnabled(),
-                List.copyOf(nodes));
-        state.markDirty(replaceCurrent(document, updatedVersion));
-        if (state.autoSaveEnabled()) {
-            saveCurrentFile();
-        }
+    public void saveNodeNote(String nodeId, String note) {
+        TraceDocument updated = editor.saveNodeNote(requireDocument(), nodeId, note, Instant.now());
+        persist(updated);
     }
 
     public int addNode(TraceNode node) {
-        TraceDocument document = state.currentDocument();
-        if (document == null || node == null) {
-            return -1;
-        }
-        TraceVersion currentVersion = ensureCurrentVersion(document);
-        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
-        nodes.add(node);
-        TraceVersion updatedVersion = new TraceVersion(
-                currentVersion.versionId(),
-                currentVersion.source(),
-                currentVersion.recordedAt(),
-                Instant.now(),
-                currentVersion.nodeDedupEnabled(),
-                List.copyOf(nodes));
-        state.markDirty(replaceCurrent(document, updatedVersion));
-        if (state.autoSaveEnabled()) {
-            saveCurrentFile();
-        }
-        return nodes.size() - 1;
+        TraceDocument updated = editor.addNode(requireDocument(), node, Instant.now());
+        persist(updated);
+        return updated.nodes().size() - 1;
     }
 
-    public void updateNode(int nodeIndex, TraceNode node) {
-        TraceDocument document = state.currentDocument();
-        if (document == null || node == null) {
-            return;
+    public int addOrReuseNode(TraceNode candidate) {
+        List<TraceNode> nodes = requireDocument().nodes();
+        for (int i = 0; i < nodes.size(); i++) {
+            TraceNode existing = nodes.get(i);
+            if (existing.displayName().equals(candidate.displayName())
+                    && existing.filePath().equals(candidate.filePath())
+                    && existing.line() == candidate.line()) {
+                return i;
+            }
         }
-        TraceVersion currentVersion = ensureCurrentVersion(document);
-        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
-        if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
-            return;
-        }
-        nodes.set(nodeIndex, node);
-        TraceVersion updatedVersion = new TraceVersion(
-                currentVersion.versionId(),
-                currentVersion.source(),
-                currentVersion.recordedAt(),
-                Instant.now(),
-                currentVersion.nodeDedupEnabled(),
-                List.copyOf(nodes));
-        state.markDirty(replaceCurrent(document, updatedVersion));
-        if (state.autoSaveEnabled()) {
-            saveCurrentFile();
-        }
+        TraceNode withId = new TraceNode(
+                "node-" + UUID.randomUUID(),
+                candidate.displayName(),
+                candidate.qualifiedName(),
+                candidate.signature(),
+                candidate.filePath(),
+                candidate.line(),
+                candidate.language(),
+                candidate.note(),
+                candidate.navigationHint());
+        return addNode(withId);
     }
 
-    public void deleteNode(int nodeIndex) {
-        TraceDocument document = state.currentDocument();
-        if (document == null) {
-            return;
-        }
-        TraceVersion currentVersion = ensureCurrentVersion(document);
-        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
-        if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
-            return;
-        }
-        nodes.remove(nodeIndex);
-        TraceVersion updatedVersion = new TraceVersion(
-                currentVersion.versionId(),
-                currentVersion.source(),
-                currentVersion.recordedAt(),
-                Instant.now(),
-                currentVersion.nodeDedupEnabled(),
-                List.copyOf(nodes));
-        state.markDirty(replaceCurrent(document, updatedVersion));
-        if (state.autoSaveEnabled()) {
-            saveCurrentFile();
+    public void updateNode(TraceNode node) {
+        TraceDocument updated = editor.updateNode(requireDocument(), node, Instant.now());
+        persist(updated);
+    }
+
+    public void setPendingLinkSource(String nodeId) {
+        state.setPendingLinkSourceId(nodeId);
+    }
+
+    public void linkPendingSourceTo(String targetNodeId, TraceLinkKind kind) {
+        String sourceNodeId = Objects.requireNonNull(state.pendingLinkSourceId(), "pendingLinkSourceId");
+        TraceDocument updated = editor.link(requireDocument(), sourceNodeId, targetNodeId, kind, Instant.now());
+        persist(updated);
+        state.clearPendingLinkSource();
+    }
+
+    public void unlinkNode(String nodeId) {
+        TraceDocument updated = editor.unlink(requireDocument(), nodeId, Instant.now());
+        persist(updated);
+        if (nodeId.equals(state.pendingLinkSourceId())) {
+            state.clearPendingLinkSource();
         }
     }
 
-    public int moveNode(int nodeIndex, int offset) {
-        TraceDocument document = state.currentDocument();
-        if (document == null || offset == 0) {
-            return nodeIndex;
-        }
-        TraceVersion currentVersion = ensureCurrentVersion(document);
-        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
-        if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
-            return nodeIndex;
-        }
-        int targetIndex = nodeIndex + offset;
-        if (targetIndex < 0 || targetIndex >= nodes.size()) {
-            return nodeIndex;
-        }
-        TraceNode node = nodes.remove(nodeIndex);
-        nodes.add(targetIndex, node);
-        TraceVersion updatedVersion = new TraceVersion(
-                currentVersion.versionId(),
-                currentVersion.source(),
-                currentVersion.recordedAt(),
-                Instant.now(),
-                currentVersion.nodeDedupEnabled(),
-                List.copyOf(nodes));
-        state.markDirty(replaceCurrent(document, updatedVersion));
-        if (state.autoSaveEnabled()) {
-            saveCurrentFile();
-        }
-        return targetIndex;
+    public int moveNodeOrPair(String nodeId, int offset) {
+        TraceDocument updated = moveInternal(requireDocument(), nodeId, offset, Instant.now());
+        persist(updated);
+        return indexOfNode(updated.nodes(), nodeId);
     }
 
-    public void setAutoSaveEnabled(boolean enabled) {
-        state.setAutoSaveEnabled(enabled);
-    }
-
-    public void setDedupEnabled(boolean enabled) {
-        state.setDedupEnabled(enabled);
-    }
-
-    public void startRecording() {
-        recordingService.start(state.dedupEnabled());
-    }
-
-    public void recordNavigation(com.zimaai.codetrace.recording.TraceableNavigationTarget target) {
-        recordingService.record(target);
-    }
-
-    public void stopRecording() {
-        TraceDocument current = state.currentDocument();
-        if (current == null) {
-            return;
-        }
-        TraceDocument updated = recordingService.stop(current);
-        state.markDirty(updated);
-        if (state.autoSaveEnabled()) {
-            saveCurrentFile();
+    public void deleteNodeOrPair(String nodeId) {
+        TraceDocument updated = deleteInternal(requireDocument(), nodeId, Instant.now());
+        persist(updated);
+        if (nodeId.equals(state.pendingLinkSourceId())) {
+            state.clearPendingLinkSource();
         }
     }
 
@@ -316,7 +146,7 @@ public final class CodeTraceController {
     }
 
     public TraceDocument createNewFile(String fileName, String displayName) {
-        TraceDocument document = TraceDocumentFactory.create(displayName);
+        TraceDocument document = createEmptyDocument(displayName);
         storage.save(fileName, document);
         state.load(fileName, document);
         return document;
@@ -335,53 +165,110 @@ public final class CodeTraceController {
         return state;
     }
 
-    public TraceStorageService storage() {
-        return storage;
+    private TraceDocument requireDocument() {
+        return Objects.requireNonNull(state.currentDocument(), "currentDocument");
     }
 
-    private static final class TraceDocumentFactory {
-        private TraceDocumentFactory() {
+    private void persist(TraceDocument document) {
+        if (state.currentFileName() == null) {
+            throw new IllegalStateException("No selected file");
         }
-
-        private static TraceDocument create(String name) {
-            Instant now = Instant.now();
-            return new TraceDocument(
-                    1,
-                    "trace-" + UUID.randomUUID(),
-                    name,
-                    "",
-                    now,
-                    now,
-                    null,
-                    List.of());
-        }
+        storage.save(state.currentFileName(), document);
+        state.replaceDocument(storage.load(state.currentFileName()));
     }
 
-    private TraceVersion ensureCurrentVersion(TraceDocument document) {
-        if (document.current() != null) {
-            return document.current();
-        }
+    private static TraceDocument createEmptyDocument(String name) {
         Instant now = Instant.now();
-        TraceVersion created = new TraceVersion(
-                "v-" + UUID.randomUUID(),
-                TraceVersionSource.MANUAL,
+        return new TraceDocument(
+                2,
+                "trace-" + UUID.randomUUID(),
+                name,
+                "",
                 now,
                 now,
-                state.dedupEnabled(),
+                List.of(),
                 List.of());
-        state.markDirty(replaceCurrent(document, created));
-        return created;
     }
 
-    private static TraceDocument replaceCurrent(TraceDocument document, TraceVersion version) {
+    private static int indexOfNode(List<TraceNode> nodes, String nodeId) {
+        for (int i = 0; i < nodes.size(); i++) {
+            if (nodes.get(i).id().equals(nodeId)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static TraceDocument moveInternal(TraceDocument document, String nodeId, int offset, Instant now) {
+        if (offset == 0) {
+            return document;
+        }
+        List<TraceNode> nodes = new ArrayList<>(document.nodes());
+        List<String> affectedIds = linkedNodeIds(document.links(), nodeId);
+        List<Integer> sourceIndexes = new ArrayList<>();
+        for (String affectedId : affectedIds) {
+            int index = indexOfNode(nodes, affectedId);
+            if (index < 0) {
+                return document;
+            }
+            sourceIndexes.add(index);
+        }
+        List<Integer> targetIndexes = sourceIndexes.stream().map(index -> index + offset).toList();
+        for (Integer targetIndex : targetIndexes) {
+            if (targetIndex < 0 || targetIndex >= nodes.size()) {
+                return document;
+            }
+        }
+        List<Integer> orderedIndexes = new ArrayList<>(sourceIndexes);
+        orderedIndexes.sort(Comparator.naturalOrder());
+        if (offset > 0) {
+            for (int i = orderedIndexes.size() - 1; i >= 0; i--) {
+                int source = orderedIndexes.get(i);
+                TraceNode moved = nodes.remove(source);
+                nodes.add(source + offset, moved);
+            }
+        } else {
+            for (int source : orderedIndexes) {
+                TraceNode moved = nodes.remove(source);
+                nodes.add(source + offset, moved);
+            }
+        }
         return new TraceDocument(
-                document.schemaVersion(),
+                2,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
-                Instant.now(),
-                version,
-                document.history());
+                now,
+                List.copyOf(nodes),
+                document.links());
+    }
+
+    private static TraceDocument deleteInternal(TraceDocument document, String nodeId, Instant now) {
+        List<String> affectedIds = linkedNodeIds(document.links(), nodeId);
+        List<TraceNode> nodes = document.nodes().stream()
+                .filter(node -> !affectedIds.contains(node.id()))
+                .toList();
+        List<TraceLink> links = document.links().stream()
+                .filter(link -> !affectedIds.contains(link.sourceNodeId()) && !affectedIds.contains(link.targetNodeId()))
+                .toList();
+        return new TraceDocument(
+                2,
+                document.id(),
+                document.name(),
+                document.description(),
+                document.createdAt(),
+                now,
+                nodes,
+                links);
+    }
+
+    private static List<String> linkedNodeIds(List<TraceLink> links, String nodeId) {
+        for (TraceLink link : links) {
+            if (link.sourceNodeId().equals(nodeId) || link.targetNodeId().equals(nodeId)) {
+                return List.of(link.sourceNodeId(), link.targetNodeId());
+            }
+        }
+        return List.of(nodeId);
     }
 }
