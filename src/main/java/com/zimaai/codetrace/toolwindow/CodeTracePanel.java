@@ -22,6 +22,8 @@ public final class CodeTracePanel {
     private final TraceEditorPanel editorPanel = new TraceEditorPanel();
     private boolean syncingTraceNote;
     private boolean syncingNodeNote;
+    private String persistedTraceNote = "";
+    private String persistedNodeNote = "";
     private String selectedNodeId;
 
     public CodeTracePanel(CodeTraceController controller) {
@@ -391,11 +393,13 @@ public final class CodeTracePanel {
             syncingTraceNote = true;
             editorPanel.traceNote().setText("");
             syncingTraceNote = false;
+            persistedTraceNote = "";
             editorPanel.nodeList().setListData(new TraceNode[0]);
             selectedNodeId = null;
             syncingNodeNote = true;
             editorPanel.nodeNote().setText("");
             syncingNodeNote = false;
+            persistedNodeNote = "";
             editorPanel.linkStatus().setText("Link source: none");
             refreshButtons();
             return;
@@ -406,7 +410,8 @@ public final class CodeTracePanel {
         }
 
         syncingTraceNote = true;
-        editorPanel.traceNote().setText(document.description() == null ? "" : document.description());
+        persistedTraceNote = document.description() == null ? "" : document.description();
+        editorPanel.traceNote().setText(persistedTraceNote);
         syncingTraceNote = false;
 
         editorPanel.nodeList().setListData(document.nodes().toArray(TraceNode[]::new));
@@ -421,7 +426,8 @@ public final class CodeTracePanel {
     private void syncSelectedNodeNote() {
         TraceNode selected = findSelectedNode();
         syncingNodeNote = true;
-        editorPanel.nodeNote().setText(selected == null || selected.note() == null ? "" : selected.note());
+        persistedNodeNote = selected == null || selected.note() == null ? "" : selected.note();
+        editorPanel.nodeNote().setText(persistedNodeNote);
         syncingNodeNote = false;
     }
 
@@ -432,15 +438,12 @@ public final class CodeTracePanel {
         boolean hasPendingSource = controller.state().pendingLinkSourceId() != null;
 
         if (hasDocument && !syncingTraceNote) {
-            String persistedTraceNote = document.description() == null ? "" : document.description();
             editorPanel.saveTraceNoteButton().setEnabled(!persistedTraceNote.equals(editorPanel.traceNote().getText()));
         } else {
             editorPanel.saveTraceNoteButton().setEnabled(false);
         }
 
         if (hasSelection && !syncingNodeNote) {
-            TraceNode selectedNode = findSelectedNode();
-            String persistedNodeNote = selectedNode.note() == null ? "" : selectedNode.note();
             editorPanel.saveNodeNoteButton().setEnabled(!persistedNodeNote.equals(editorPanel.nodeNote().getText()));
         } else {
             editorPanel.saveNodeNoteButton().setEnabled(false);
