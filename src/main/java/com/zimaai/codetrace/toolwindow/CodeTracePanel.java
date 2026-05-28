@@ -72,6 +72,11 @@ public final class CodeTracePanel {
         addButton(toolbar, "Unlink", this::unlinkSelectedNode);
 
         JBSplitter split = new JBSplitter(false, 0.25f);
+        // Allow users to freely resize file list vs editor list panes.
+        split.setHonorComponentsMinimumSize(false);
+        split.setDividerWidth(12);
+        split.setShowDividerControls(true);
+        split.setAllowSwitchOrientationByMouseClick(false);
         split.setFirstComponent(fileListPanel.component());
         split.setSecondComponent(editorPanel.component());
 
