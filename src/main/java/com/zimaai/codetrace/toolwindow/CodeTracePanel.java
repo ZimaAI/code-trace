@@ -392,6 +392,7 @@ public final class CodeTracePanel {
             editorPanel.traceNote().setText("");
             syncingTraceNote = false;
             editorPanel.nodeList().setListData(new TraceNode[0]);
+            selectedNodeId = null;
             syncingNodeNote = true;
             editorPanel.nodeNote().setText("");
             syncingNodeNote = false;
@@ -409,6 +410,7 @@ public final class CodeTracePanel {
         syncingTraceNote = false;
 
         editorPanel.nodeList().setListData(document.nodes().toArray(TraceNode[]::new));
+        restoreSelection(document.nodes());
         editorPanel.linkStatus().setText("Link source: "
                 + (controller.state().pendingLinkSourceId() == null ? "none" : controller.state().pendingLinkSourceId()));
 
@@ -417,7 +419,7 @@ public final class CodeTracePanel {
     }
 
     private void syncSelectedNodeNote() {
-        TraceNode selected = editorPanel.nodeList().getSelectedValue();
+        TraceNode selected = findSelectedNode();
         syncingNodeNote = true;
         editorPanel.nodeNote().setText(selected == null || selected.note() == null ? "" : selected.note());
         syncingNodeNote = false;
@@ -426,7 +428,7 @@ public final class CodeTracePanel {
     private void refreshButtons() {
         var document = controller.state().currentDocument();
         boolean hasDocument = document != null;
-        boolean hasSelection = editorPanel.nodeList().getSelectedValue() != null;
+        boolean hasSelection = findSelectedNode() != null;
         boolean hasPendingSource = controller.state().pendingLinkSourceId() != null;
 
         if (hasDocument && !syncingTraceNote) {
@@ -437,7 +439,7 @@ public final class CodeTracePanel {
         }
 
         if (hasSelection && !syncingNodeNote) {
-            TraceNode selectedNode = editorPanel.nodeList().getSelectedValue();
+            TraceNode selectedNode = findSelectedNode();
             String persistedNodeNote = selectedNode.note() == null ? "" : selectedNode.note();
             editorPanel.saveNodeNoteButton().setEnabled(!persistedNodeNote.equals(editorPanel.nodeNote().getText()));
         } else {
@@ -451,6 +453,33 @@ public final class CodeTracePanel {
         editorPanel.setAsSourceButton().setEnabled(hasSelection);
         editorPanel.linkToHereButton().setEnabled(hasSelection && hasPendingSource);
         editorPanel.unlinkButton().setEnabled(hasSelection);
+    }
+
+    private TraceNode findSelectedNode() {
+        if (selectedNodeId == null || controller.state().currentDocument() == null) {
+            return null;
+        }
+        return controller.state().currentDocument().nodes().stream()
+                .filter(node -> node.id().equals(selectedNodeId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void restoreSelection(List<TraceNode> nodes) {
+        if (nodes.isEmpty()) {
+            selectedNodeId = null;
+            return;
+        }
+        if (selectedNodeId != null) {
+            for (int i = 0; i < nodes.size(); i++) {
+                if (nodes.get(i).id().equals(selectedNodeId)) {
+                    editorPanel.nodeList().setSelectedIndex(i);
+                    return;
+                }
+            }
+        }
+        selectedNodeId = nodes.get(0).id();
+        editorPanel.nodeList().setSelectedIndex(0);
     }
 
     private record NodeInput(
