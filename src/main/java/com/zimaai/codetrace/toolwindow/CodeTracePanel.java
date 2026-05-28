@@ -118,6 +118,9 @@ public final class CodeTracePanel {
     }
 
     private void wireNoteButtons() {
+        editorPanel.saveTraceNoteButton().addActionListener(event -> saveTraceNote());
+        editorPanel.saveNodeNoteButton().addActionListener(event -> saveNodeNote());
+
         editorPanel.traceNote().getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
