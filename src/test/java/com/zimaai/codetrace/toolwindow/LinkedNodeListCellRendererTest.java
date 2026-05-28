@@ -8,6 +8,7 @@ import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceLink;
 import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
+import com.intellij.ui.JBColor;
 import java.awt.Component;
 import java.time.Instant;
 import java.util.List;
@@ -44,5 +45,20 @@ class LinkedNodeListCellRendererTest {
         assertNotNull(sourceColor);
         assertNotNull(targetColor);
         assertNotEquals(sourceColor.getRGB(), targetColor.getRGB());
+        assertEquals(JBColor.class, sourceColor.getClass());
+        assertEquals(JBColor.class, targetColor.getClass());
+    }
+
+    @Test
+    void exposesThemeAwareColorsForPendingSourceSourceAndTarget() {
+        assertEquals(JBColor.class, LinkedNodeListCellRenderer.PENDING_SOURCE_COLOR.getClass());
+        assertEquals(JBColor.class, LinkedNodeListCellRenderer.SOURCE_COLOR.getClass());
+        assertEquals(JBColor.class, LinkedNodeListCellRenderer.TARGET_COLOR.getClass());
+        assertNotEquals(
+                LinkedNodeListCellRenderer.PENDING_SOURCE_COLOR.getRGB(),
+                LinkedNodeListCellRenderer.SOURCE_COLOR.getRGB());
+        assertNotEquals(
+                LinkedNodeListCellRenderer.SOURCE_COLOR.getRGB(),
+                LinkedNodeListCellRenderer.TARGET_COLOR.getRGB());
     }
 }
