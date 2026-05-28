@@ -1,9 +1,16 @@
 package com.zimaai.codetrace.toolwindow;
 
+import com.intellij.openapi.editor.colors.EditorColors;
+import com.intellij.openapi.editor.colors.EditorColorsManager;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.ui.ColorUtil;
+import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
+import com.intellij.util.ui.UIUtil;
 import com.zimaai.codetrace.model.TraceNode;
+import java.awt.Color;
 import java.awt.BorderLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -28,6 +35,9 @@ public final class TraceEditorPanel {
     private final JPanel root = new JPanel(new BorderLayout());
 
     public TraceEditorPanel() {
+        configureTextArea(traceNote);
+        configureTextArea(nodeNote);
+
         JPanel traceNotePanel = new JPanel(new BorderLayout());
         traceNotePanel.add(new JBScrollPane(traceNote), BorderLayout.CENTER);
         traceNotePanel.add(saveTraceNoteButton, BorderLayout.SOUTH);
@@ -58,6 +68,26 @@ public final class TraceEditorPanel {
 
         root.add(traceNotePanel, BorderLayout.NORTH);
         root.add(content, BorderLayout.CENTER);
+    }
+
+    private static void configureTextArea(JBTextArea area) {
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setSelectionColor(new JBColor(
+                () -> resolveEditorColor(EditorColors.SELECTION_BACKGROUND_COLOR, UIUtil.getListSelectionBackground(), 0.85)));
+        area.setSelectedTextColor(new JBColor(
+                () -> resolveEditorColor(EditorColors.SELECTION_FOREGROUND_COLOR, UIUtil.getListSelectionForeground(), 1.0)));
+        area.setCaretColor(new JBColor(
+                () -> resolveEditorColor(EditorColors.CARET_COLOR, UIUtil.getTextAreaForeground(), 1.0)));
+    }
+
+    private static Color resolveEditorColor(com.intellij.openapi.editor.colors.ColorKey key, Color fallback, double alpha) {
+        Color color = null;
+        if (ApplicationManager.getApplication() != null) {
+            color = EditorColorsManager.getInstance().getGlobalScheme().getColor(key);
+        }
+        Color base = color == null ? fallback : color;
+        return alpha >= 1.0 ? base : ColorUtil.withAlpha(base, alpha);
     }
 
     public JComponent component() {
