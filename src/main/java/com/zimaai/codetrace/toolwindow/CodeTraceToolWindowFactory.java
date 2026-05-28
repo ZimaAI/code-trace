@@ -3,7 +3,7 @@ package com.zimaai.codetrace.toolwindow;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
-import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.actionSystem.ex.AnActionListener;
 import com.intellij.ui.content.ContentFactory;
 import com.zimaai.codetrace.navigation.CodeNavigationService;
 import com.zimaai.codetrace.recording.IdeNavigationListener;
@@ -25,9 +25,9 @@ public final class CodeTraceToolWindowFactory implements ToolWindowFactory {
                 recording,
                 navigation::navigate);
         IdeNavigationListener listener = new IdeNavigationListener(project, controller::recordNavigation);
-        @SuppressWarnings("removal")
-        ActionManager actionManager = ActionManager.getInstance();
-        actionManager.addAnActionListener(listener);
+        project.getMessageBus()
+                .connect(project)
+                .subscribe(AnActionListener.TOPIC, listener);
         CodeTracePanel panel = new CodeTracePanel(project, controller);
         panel.reloadFromDisk();
         var content = ContentFactory.getInstance().createContent(panel.getComponent(), "", false);

@@ -289,10 +289,36 @@ public final class CodeTracePanel {
     }
 
     private void refreshAndRepaint() {
-        controller.refreshCurrentFile();
+        if (controller.hasUnsavedChanges()) {
+            UnsavedChangesDecision decision = askRefreshDecision();
+            controller.recordDecision(decision);
+            if (!controller.refreshWithDecision(decision)) {
+                return;
+            }
+        } else {
+            controller.refreshCurrentFile();
+        }
         showingHistoryVersion = false;
         selectedHistoryIndex = -1;
         rebuildView();
+    }
+
+    private UnsavedChangesDecision askRefreshDecision() {
+        Object[] options = {"Save and Refresh", "Discard and Refresh", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(
+                root,
+                "There are unsaved changes. Choose how to continue refresh.",
+                "Unsaved Changes",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                options,
+                options[0]);
+        return switch (choice) {
+            case 0 -> UnsavedChangesDecision.SAVE;
+            case 1 -> UnsavedChangesDecision.DISCARD;
+            default -> UnsavedChangesDecision.CANCEL;
+        };
     }
 
     private void addNode() {

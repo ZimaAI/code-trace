@@ -62,6 +62,41 @@ public final class CodeTraceController {
         return true;
     }
 
+    public boolean refreshWithDecision(UnsavedChangesDecision decision) {
+        if (state.currentFileName() == null) {
+            return false;
+        }
+        if (!state.dirty()) {
+            state.load(state.currentFileName(), storage.load(state.currentFileName()));
+            return true;
+        }
+        if (decision == null) {
+            return false;
+        }
+        recordDecision(decision);
+        if (decision == UnsavedChangesDecision.CANCEL) {
+            return false;
+        }
+        if (decision == UnsavedChangesDecision.SAVE) {
+            saveCurrentFile();
+        }
+        if (decision != UnsavedChangesDecision.DISCARD && decision != UnsavedChangesDecision.SAVE) {
+            return false;
+        }
+        state.load(state.currentFileName(), storage.load(state.currentFileName()));
+        return true;
+    }
+
+    public boolean hasUnsavedChanges() {
+        return state.dirty();
+    }
+
+    public void recordDecision(UnsavedChangesDecision decision) {
+        if (decision != null) {
+            state.recordDecision(decision);
+        }
+    }
+
     public void saveCurrentFile() {
         if (state.currentFileName() == null || state.currentDocument() == null) {
             return;

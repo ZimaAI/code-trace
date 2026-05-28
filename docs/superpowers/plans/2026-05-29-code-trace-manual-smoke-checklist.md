@@ -22,6 +22,10 @@
 3. 复制：生成 `*-copy.json`。
 4. 删除：确认后移除文件。
 5. 刷新：外部改 JSON 后点击 `Refresh` 能重载。
+6. 刷新冲突：当本地有未保存改动，点击 `Refresh` 出现三种选择：
+   - `Save and Refresh`
+   - `Discard and Refresh`
+   - `Cancel`
 
 ## 录制流程
 

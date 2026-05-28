@@ -1,6 +1,7 @@
 package com.zimaai.codetrace.toolwindow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zimaai.codetrace.model.TraceDocument;
@@ -40,6 +41,49 @@ class CodeTraceControllerTest {
         assertTrue(refreshed);
         assertEquals("note", controller.state().currentDocument().description());
         assertTrue(controller.state().dirtyHistory().contains(UnsavedChangesDecision.DISCARD));
+    }
+
+    @Test
+    void refreshDecisionSavePersistsAndReloads() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("trace-save.json", document("disk-note"));
+        CodeTraceController controller = new CodeTraceController(
+                storage,
+                decision -> true,
+                new TraceRecordingService(Clock.fixed(Instant.parse("2026-05-28T10:30:00Z"), ZoneOffset.UTC)),
+                node -> true);
+
+        controller.load("trace-save.json");
+        controller.updateDescription("edited-note");
+
+        boolean refreshed = controller.refreshWithDecision(UnsavedChangesDecision.SAVE);
+
+        assertTrue(refreshed);
+        assertEquals("edited-note", controller.state().currentDocument().description());
+        assertTrue(controller.state().dirtyHistory().contains(UnsavedChangesDecision.SAVE));
+        TraceDocument reloaded = storage.load("trace-save.json");
+        assertEquals("edited-note", reloaded.description());
+    }
+
+    @Test
+    void refreshDecisionCancelKeepsDirtyState() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("trace-cancel.json", document("disk-note"));
+        CodeTraceController controller = new CodeTraceController(
+                storage,
+                decision -> true,
+                new TraceRecordingService(Clock.fixed(Instant.parse("2026-05-28T10:30:00Z"), ZoneOffset.UTC)),
+                node -> true);
+
+        controller.load("trace-cancel.json");
+        controller.updateDescription("edited-note");
+
+        boolean refreshed = controller.refreshWithDecision(UnsavedChangesDecision.CANCEL);
+
+        assertFalse(refreshed);
+        assertEquals("edited-note", controller.state().currentDocument().description());
+        assertTrue(controller.state().dirty());
+        assertTrue(controller.state().dirtyHistory().contains(UnsavedChangesDecision.CANCEL));
     }
 
     @Test
