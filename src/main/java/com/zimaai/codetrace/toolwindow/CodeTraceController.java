@@ -2,8 +2,10 @@ package com.zimaai.codetrace.toolwindow;
 
 import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceNode;
+import com.zimaai.codetrace.model.TraceVersion;
 import com.zimaai.codetrace.recording.TraceRecordingService;
 import com.zimaai.codetrace.storage.TraceStorageService;
+import java.util.ArrayList;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -82,6 +84,50 @@ public final class CodeTraceController {
                 current.current(),
                 current.history());
         state.markDirty(updated);
+        if (state.autoSaveEnabled()) {
+            saveCurrentFile();
+        }
+    }
+
+    public void updateNodeNote(int nodeIndex, String note) {
+        TraceDocument document = state.currentDocument();
+        if (document == null || document.current() == null) {
+            return;
+        }
+        List<TraceNode> nodes = new ArrayList<>(document.current().nodes());
+        if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
+            return;
+        }
+        TraceNode node = nodes.get(nodeIndex);
+        TraceNode updatedNode = new TraceNode(
+                node.id(),
+                node.displayName(),
+                node.qualifiedName(),
+                node.signature(),
+                node.filePath(),
+                node.line(),
+                node.language(),
+                note,
+                node.navigationHint());
+        nodes.set(nodeIndex, updatedNode);
+        TraceVersion currentVersion = document.current();
+        TraceVersion updatedVersion = new TraceVersion(
+                currentVersion.versionId(),
+                currentVersion.source(),
+                currentVersion.recordedAt(),
+                Instant.now(),
+                currentVersion.nodeDedupEnabled(),
+                List.copyOf(nodes));
+        TraceDocument updatedDocument = new TraceDocument(
+                document.schemaVersion(),
+                document.id(),
+                document.name(),
+                document.description(),
+                document.createdAt(),
+                Instant.now(),
+                updatedVersion,
+                document.history());
+        state.markDirty(updatedDocument);
         if (state.autoSaveEnabled()) {
             saveCurrentFile();
         }

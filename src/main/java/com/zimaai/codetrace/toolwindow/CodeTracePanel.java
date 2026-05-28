@@ -4,6 +4,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBTextArea;
+import com.zimaai.codetrace.model.TraceVersion;
 import java.awt.BorderLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -15,6 +16,8 @@ import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
@@ -25,6 +28,8 @@ public final class CodeTracePanel {
     private final TraceFileListPanel fileListPanel;
     private final TraceEditorPanel editorPanel;
     private final HistoryListPanel historyPanel;
+    private boolean showingHistoryVersion;
+    private int selectedHistoryIndex = -1;
 
     public CodeTracePanel(Project project, CodeTraceController controller) {
         this.controller = controller;
@@ -36,6 +41,8 @@ public final class CodeTracePanel {
         wireSelection();
         wireNoteEditor();
         wireNodeNavigation();
+        wireHistorySelection();
+        wireNodeNoteEditor();
 
         JPanel toolbar = new JPanel();
         addButton(toolbar, "Start Recording", controller::startRecording);
@@ -65,6 +72,8 @@ public final class CodeTracePanel {
 
     public void reloadFromDisk() {
         controller.ensureAnyFileLoaded();
+        showingHistoryVersion = false;
+        selectedHistoryIndex = -1;
         rebuildView();
     }
 
@@ -139,11 +148,70 @@ public final class CodeTracePanel {
                     return;
                 }
                 int index = editorPanel.nodeList().locationToIndex(event.getPoint());
-                var document = controller.state().currentDocument();
-                if (document == null || document.current() == null || index < 0 || index >= document.current().nodes().size()) {
+                TraceVersion version = getDisplayedVersion();
+                if (version == null || index < 0 || index >= version.nodes().size()) {
                     return;
                 }
-                controller.navigateToNode(document.current().nodes().get(index));
+                controller.navigateToNode(version.nodes().get(index));
+            }
+        });
+    }
+
+    private void wireHistorySelection() {
+        historyPanel.list().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent event) {
+                if (event.getValueIsAdjusting()) {
+                    return;
+                }
+                int index = historyPanel.list().getSelectedIndex();
+                if (index <= 0) {
+                    showingHistoryVersion = false;
+                    selectedHistoryIndex = -1;
+                } else {
+                    showingHistoryVersion = true;
+                    selectedHistoryIndex = index - 1;
+                }
+                rebuildNodeListAndNodeNote();
+            }
+        });
+    }
+
+    private void wireNodeNoteEditor() {
+        editorPanel.nodeList().addListSelectionListener(event -> {
+            if (event.getValueIsAdjusting()) {
+                return;
+            }
+            refreshSelectedNodeNote();
+        });
+
+        JBTextArea nodeNote = editorPanel.nodeNote();
+        nodeNote.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                updateNodeNote();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                updateNodeNote();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                updateNodeNote();
+            }
+
+            private void updateNodeNote() {
+                if (!nodeNote.hasFocus() || showingHistoryVersion) {
+                    return;
+                }
+                int index = editorPanel.nodeList().getSelectedIndex();
+                if (index < 0) {
+                    return;
+                }
+                controller.updateNodeNote(index, nodeNote.getText());
+                refreshHistory();
             }
         });
     }
@@ -185,6 +253,8 @@ public final class CodeTracePanel {
         }
         String normalized = newName.endsWith(".json") ? newName : newName + ".json";
         controller.copyCurrentFile(normalized);
+        showingHistoryVersion = false;
+        selectedHistoryIndex = -1;
         rebuildView();
     }
 
@@ -203,11 +273,15 @@ public final class CodeTracePanel {
         }
         controller.deleteCurrentFile();
         controller.ensureAnyFileLoaded();
+        showingHistoryVersion = false;
+        selectedHistoryIndex = -1;
         rebuildView();
     }
 
     private void refreshAndRepaint() {
         controller.refreshCurrentFile();
+        showingHistoryVersion = false;
+        selectedHistoryIndex = -1;
         rebuildView();
     }
 
@@ -217,10 +291,63 @@ public final class CodeTracePanel {
             historyPanel.list().setListData(new String[0]);
             return;
         }
-        String[] entries = document.history().stream()
-                .map(version -> version.versionId() + " (" + version.source() + ")")
-                .toArray(String[]::new);
+        String[] entries = new String[document.history().size() + 1];
+        entries[0] = "Current: " + (document.current() == null ? "-" : document.current().versionId());
+        for (int i = 0; i < document.history().size(); i++) {
+            var version = document.history().get(i);
+            entries[i + 1] = "History: " + version.versionId() + " (" + version.source() + ")";
+        }
         historyPanel.list().setListData(entries);
+        if (showingHistoryVersion && selectedHistoryIndex >= 0 && selectedHistoryIndex + 1 < entries.length) {
+            historyPanel.list().setSelectedIndex(selectedHistoryIndex + 1);
+        } else {
+            historyPanel.list().setSelectedIndex(0);
+        }
+    }
+
+    private TraceVersion getDisplayedVersion() {
+        var document = controller.state().currentDocument();
+        if (document == null) {
+            return null;
+        }
+        if (showingHistoryVersion) {
+            if (selectedHistoryIndex < 0 || selectedHistoryIndex >= document.history().size()) {
+                return null;
+            }
+            return document.history().get(selectedHistoryIndex);
+        }
+        return document.current();
+    }
+
+    private void rebuildNodeListAndNodeNote() {
+        TraceVersion version = getDisplayedVersion();
+        if (version == null) {
+            editorPanel.nodeList().setListData(new String[0]);
+            editorPanel.nodeNote().setText("");
+            editorPanel.nodeNote().setEditable(false);
+            return;
+        }
+        String[] nodes = version.nodes().stream()
+                .map(node -> node.displayName() + " @ " + node.filePath() + ":" + node.line())
+                .toArray(String[]::new);
+        editorPanel.nodeList().setListData(nodes);
+        editorPanel.nodeNote().setEditable(!showingHistoryVersion);
+        if (nodes.length > 0) {
+            editorPanel.nodeList().setSelectedIndex(0);
+        } else {
+            editorPanel.nodeNote().setText("");
+        }
+    }
+
+    private void refreshSelectedNodeNote() {
+        int index = editorPanel.nodeList().getSelectedIndex();
+        TraceVersion version = getDisplayedVersion();
+        if (version == null || index < 0 || index >= version.nodes().size()) {
+            editorPanel.nodeNote().setText("");
+            return;
+        }
+        String note = version.nodes().get(index).note();
+        editorPanel.nodeNote().setText(note == null ? "" : note);
     }
 
     private void rebuildView() {
@@ -234,20 +361,12 @@ public final class CodeTracePanel {
                     fileListPanel.list().setSelectedValue(controller.state().currentFileName(), true);
                 }
                 editorPanel.traceNote().setText(document.description() == null ? "" : document.description());
-                if (document.current() != null) {
-                    String[] nodes = document.current().nodes().stream()
-                            .map(node -> node.displayName() + " @ " + node.filePath() + ":" + node.line())
-                            .toArray(String[]::new);
-                    editorPanel.nodeList().setListData(nodes);
-                } else {
-                    editorPanel.nodeList().setListData(new String[0]);
-                }
             } else {
                 editorPanel.traceNote().setText("");
-                editorPanel.nodeList().setListData(new String[0]);
             }
 
             refreshHistory();
+            rebuildNodeListAndNodeNote();
         });
     }
 }
