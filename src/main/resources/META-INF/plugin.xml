@@ -1,0 +1,16 @@
+<idea-plugin>
+    <id>com.zimaai.codetrace</id>
+    <name>code-trace</name>
+    <vendor email="support@example.com">zimaai</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends optional="true">com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow
+                id="code-trace"
+                anchor="left"
+                factoryClass="com.zimaai.codetrace.toolwindow.CodeTraceToolWindowFactory"
+                icon="AllIcons.Toolwindows.ToolWindowMessages"/>
+    </extensions>
+</idea-plugin>
