@@ -4,6 +4,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBTextArea;
+import com.zimaai.codetrace.model.TraceNode;
 import com.zimaai.codetrace.model.TraceVersion;
 import java.awt.BorderLayout;
 import java.awt.event.MouseAdapter;
@@ -43,6 +44,7 @@ public final class CodeTracePanel {
         wireNodeNavigation();
         wireHistorySelection();
         wireNodeNoteEditor();
+        wireNodeActions();
 
         JPanel toolbar = new JPanel();
         addButton(toolbar, "Start Recording", controller::startRecording);
@@ -216,6 +218,14 @@ public final class CodeTracePanel {
         });
     }
 
+    private void wireNodeActions() {
+        editorPanel.addNodeButton().addActionListener(event -> addNode());
+        editorPanel.editNodeButton().addActionListener(event -> editSelectedNode());
+        editorPanel.deleteNodeButton().addActionListener(event -> deleteSelectedNode());
+        editorPanel.moveUpButton().addActionListener(event -> moveSelectedNode(-1));
+        editorPanel.moveDownButton().addActionListener(event -> moveSelectedNode(1));
+    }
+
     private void createFile() {
         String fileName = JOptionPane.showInputDialog(root, "New JSON file name", "new-trace.json");
         if (fileName == null || fileName.isBlank()) {
@@ -285,6 +295,140 @@ public final class CodeTracePanel {
         rebuildView();
     }
 
+    private void addNode() {
+        if (showingHistoryVersion) {
+            return;
+        }
+        NodeInput input = showNodeDialog("Add Node", null);
+        if (input == null) {
+            return;
+        }
+        TraceNode node = new TraceNode(
+                "manual-" + System.nanoTime(),
+                input.displayName(),
+                input.qualifiedName(),
+                input.signature(),
+                input.filePath(),
+                input.line(),
+                input.language(),
+                input.note(),
+                input.navigationHint());
+        int index = controller.addNode(node);
+        rebuildView();
+        if (index >= 0) {
+            editorPanel.nodeList().setSelectedIndex(index);
+        }
+    }
+
+    private void editSelectedNode() {
+        if (showingHistoryVersion) {
+            return;
+        }
+        int index = editorPanel.nodeList().getSelectedIndex();
+        TraceVersion version = getDisplayedVersion();
+        if (version == null || index < 0 || index >= version.nodes().size()) {
+            return;
+        }
+        TraceNode existing = version.nodes().get(index);
+        NodeInput input = showNodeDialog("Edit Node", existing);
+        if (input == null) {
+            return;
+        }
+        TraceNode updated = new TraceNode(
+                existing.id(),
+                input.displayName(),
+                input.qualifiedName(),
+                input.signature(),
+                input.filePath(),
+                input.line(),
+                input.language(),
+                input.note(),
+                input.navigationHint());
+        controller.updateNode(index, updated);
+        rebuildView();
+        editorPanel.nodeList().setSelectedIndex(index);
+    }
+
+    private void deleteSelectedNode() {
+        if (showingHistoryVersion) {
+            return;
+        }
+        int index = editorPanel.nodeList().getSelectedIndex();
+        if (index < 0) {
+            return;
+        }
+        controller.deleteNode(index);
+        rebuildView();
+        int nextIndex = Math.max(0, index - 1);
+        if (editorPanel.nodeList().getModel().getSize() > 0) {
+            editorPanel.nodeList().setSelectedIndex(Math.min(nextIndex, editorPanel.nodeList().getModel().getSize() - 1));
+        }
+    }
+
+    private void moveSelectedNode(int offset) {
+        if (showingHistoryVersion) {
+            return;
+        }
+        int index = editorPanel.nodeList().getSelectedIndex();
+        if (index < 0) {
+            return;
+        }
+        int movedTo = controller.moveNode(index, offset);
+        rebuildView();
+        if (movedTo >= 0 && movedTo < editorPanel.nodeList().getModel().getSize()) {
+            editorPanel.nodeList().setSelectedIndex(movedTo);
+        }
+    }
+
+    private NodeInput showNodeDialog(String title, TraceNode initial) {
+        JBTextArea fileField = new JBTextArea(initial == null ? "" : initial.filePath());
+        javax.swing.JTextField nameField = new javax.swing.JTextField(initial == null ? "" : initial.displayName());
+        javax.swing.JTextField qualifiedField = new javax.swing.JTextField(initial == null ? "" : initial.qualifiedName());
+        javax.swing.JTextField signatureField = new javax.swing.JTextField(initial == null ? "" : initial.signature());
+        javax.swing.JTextField lineField = new javax.swing.JTextField(initial == null ? "1" : Integer.toString(initial.line()));
+        javax.swing.JTextField languageField = new javax.swing.JTextField(initial == null ? "UNKNOWN" : initial.language());
+        javax.swing.JTextField hintField = new javax.swing.JTextField(initial == null ? "" : initial.navigationHint());
+        javax.swing.JTextField noteField = new javax.swing.JTextField(initial == null ? "" : initial.note());
+
+        JPanel panel = new JPanel(new java.awt.GridLayout(0, 1));
+        panel.add(new javax.swing.JLabel("Display Name"));
+        panel.add(nameField);
+        panel.add(new javax.swing.JLabel("Qualified Name"));
+        panel.add(qualifiedField);
+        panel.add(new javax.swing.JLabel("Signature"));
+        panel.add(signatureField);
+        panel.add(new javax.swing.JLabel("File Path"));
+        panel.add(fileField);
+        panel.add(new javax.swing.JLabel("Line"));
+        panel.add(lineField);
+        panel.add(new javax.swing.JLabel("Language"));
+        panel.add(languageField);
+        panel.add(new javax.swing.JLabel("Navigation Hint"));
+        panel.add(hintField);
+        panel.add(new javax.swing.JLabel("Node Note"));
+        panel.add(noteField);
+
+        int result = JOptionPane.showConfirmDialog(root, panel, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result != JOptionPane.OK_OPTION) {
+            return null;
+        }
+        int line;
+        try {
+            line = Integer.parseInt(lineField.getText().trim());
+        } catch (NumberFormatException exception) {
+            line = 1;
+        }
+        return new NodeInput(
+                nameField.getText().trim(),
+                qualifiedField.getText().trim(),
+                signatureField.getText().trim(),
+                fileField.getText().trim(),
+                Math.max(line, 1),
+                languageField.getText().trim().isEmpty() ? "UNKNOWN" : languageField.getText().trim(),
+                noteField.getText(),
+                hintField.getText().trim());
+    }
+
     private void refreshHistory() {
         var document = controller.state().currentDocument();
         if (document == null) {
@@ -325,6 +469,7 @@ public final class CodeTracePanel {
             editorPanel.nodeList().setListData(new String[0]);
             editorPanel.nodeNote().setText("");
             editorPanel.nodeNote().setEditable(false);
+            setNodeActionEnabled(false);
             return;
         }
         String[] nodes = version.nodes().stream()
@@ -332,6 +477,7 @@ public final class CodeTracePanel {
                 .toArray(String[]::new);
         editorPanel.nodeList().setListData(nodes);
         editorPanel.nodeNote().setEditable(!showingHistoryVersion);
+        setNodeActionEnabled(!showingHistoryVersion);
         if (nodes.length > 0) {
             editorPanel.nodeList().setSelectedIndex(0);
         } else {
@@ -368,5 +514,24 @@ public final class CodeTracePanel {
             refreshHistory();
             rebuildNodeListAndNodeNote();
         });
+    }
+
+    private void setNodeActionEnabled(boolean enabled) {
+        editorPanel.addNodeButton().setEnabled(enabled);
+        editorPanel.editNodeButton().setEnabled(enabled);
+        editorPanel.deleteNodeButton().setEnabled(enabled);
+        editorPanel.moveUpButton().setEnabled(enabled);
+        editorPanel.moveDownButton().setEnabled(enabled);
+    }
+
+    private record NodeInput(
+            String displayName,
+            String qualifiedName,
+            String signature,
+            String filePath,
+            int line,
+            String language,
+            String note,
+            String navigationHint) {
     }
 }

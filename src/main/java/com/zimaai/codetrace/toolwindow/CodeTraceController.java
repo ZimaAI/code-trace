@@ -3,6 +3,7 @@ package com.zimaai.codetrace.toolwindow;
 import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceNode;
 import com.zimaai.codetrace.model.TraceVersion;
+import com.zimaai.codetrace.model.TraceVersionSource;
 import com.zimaai.codetrace.recording.TraceRecordingService;
 import com.zimaai.codetrace.storage.TraceStorageService;
 import java.util.ArrayList;
@@ -91,10 +92,11 @@ public final class CodeTraceController {
 
     public void updateNodeNote(int nodeIndex, String note) {
         TraceDocument document = state.currentDocument();
-        if (document == null || document.current() == null) {
+        if (document == null) {
             return;
         }
-        List<TraceNode> nodes = new ArrayList<>(document.current().nodes());
+        TraceVersion currentVersion = ensureCurrentVersion(document);
+        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
         if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
             return;
         }
@@ -110,7 +112,6 @@ public final class CodeTraceController {
                 note,
                 node.navigationHint());
         nodes.set(nodeIndex, updatedNode);
-        TraceVersion currentVersion = document.current();
         TraceVersion updatedVersion = new TraceVersion(
                 currentVersion.versionId(),
                 currentVersion.source(),
@@ -118,19 +119,110 @@ public final class CodeTraceController {
                 Instant.now(),
                 currentVersion.nodeDedupEnabled(),
                 List.copyOf(nodes));
-        TraceDocument updatedDocument = new TraceDocument(
-                document.schemaVersion(),
-                document.id(),
-                document.name(),
-                document.description(),
-                document.createdAt(),
-                Instant.now(),
-                updatedVersion,
-                document.history());
-        state.markDirty(updatedDocument);
+        state.markDirty(replaceCurrent(document, updatedVersion));
         if (state.autoSaveEnabled()) {
             saveCurrentFile();
         }
+    }
+
+    public int addNode(TraceNode node) {
+        TraceDocument document = state.currentDocument();
+        if (document == null || node == null) {
+            return -1;
+        }
+        TraceVersion currentVersion = ensureCurrentVersion(document);
+        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
+        nodes.add(node);
+        TraceVersion updatedVersion = new TraceVersion(
+                currentVersion.versionId(),
+                currentVersion.source(),
+                currentVersion.recordedAt(),
+                Instant.now(),
+                currentVersion.nodeDedupEnabled(),
+                List.copyOf(nodes));
+        state.markDirty(replaceCurrent(document, updatedVersion));
+        if (state.autoSaveEnabled()) {
+            saveCurrentFile();
+        }
+        return nodes.size() - 1;
+    }
+
+    public void updateNode(int nodeIndex, TraceNode node) {
+        TraceDocument document = state.currentDocument();
+        if (document == null || node == null) {
+            return;
+        }
+        TraceVersion currentVersion = ensureCurrentVersion(document);
+        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
+        if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
+            return;
+        }
+        nodes.set(nodeIndex, node);
+        TraceVersion updatedVersion = new TraceVersion(
+                currentVersion.versionId(),
+                currentVersion.source(),
+                currentVersion.recordedAt(),
+                Instant.now(),
+                currentVersion.nodeDedupEnabled(),
+                List.copyOf(nodes));
+        state.markDirty(replaceCurrent(document, updatedVersion));
+        if (state.autoSaveEnabled()) {
+            saveCurrentFile();
+        }
+    }
+
+    public void deleteNode(int nodeIndex) {
+        TraceDocument document = state.currentDocument();
+        if (document == null) {
+            return;
+        }
+        TraceVersion currentVersion = ensureCurrentVersion(document);
+        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
+        if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
+            return;
+        }
+        nodes.remove(nodeIndex);
+        TraceVersion updatedVersion = new TraceVersion(
+                currentVersion.versionId(),
+                currentVersion.source(),
+                currentVersion.recordedAt(),
+                Instant.now(),
+                currentVersion.nodeDedupEnabled(),
+                List.copyOf(nodes));
+        state.markDirty(replaceCurrent(document, updatedVersion));
+        if (state.autoSaveEnabled()) {
+            saveCurrentFile();
+        }
+    }
+
+    public int moveNode(int nodeIndex, int offset) {
+        TraceDocument document = state.currentDocument();
+        if (document == null || offset == 0) {
+            return nodeIndex;
+        }
+        TraceVersion currentVersion = ensureCurrentVersion(document);
+        List<TraceNode> nodes = new ArrayList<>(currentVersion.nodes());
+        if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
+            return nodeIndex;
+        }
+        int targetIndex = nodeIndex + offset;
+        if (targetIndex < 0 || targetIndex >= nodes.size()) {
+            return nodeIndex;
+        }
+        TraceNode node = nodes.remove(nodeIndex);
+        nodes.add(targetIndex, node);
+        TraceVersion updatedVersion = new TraceVersion(
+                currentVersion.versionId(),
+                currentVersion.source(),
+                currentVersion.recordedAt(),
+                Instant.now(),
+                currentVersion.nodeDedupEnabled(),
+                List.copyOf(nodes));
+        state.markDirty(replaceCurrent(document, updatedVersion));
+        if (state.autoSaveEnabled()) {
+            saveCurrentFile();
+        }
+        return targetIndex;
     }
 
     public void setAutoSaveEnabled(boolean enabled) {
@@ -228,5 +320,33 @@ public final class CodeTraceController {
                     null,
                     List.of());
         }
+    }
+
+    private TraceVersion ensureCurrentVersion(TraceDocument document) {
+        if (document.current() != null) {
+            return document.current();
+        }
+        Instant now = Instant.now();
+        TraceVersion created = new TraceVersion(
+                "v-" + UUID.randomUUID(),
+                TraceVersionSource.MANUAL,
+                now,
+                now,
+                state.dedupEnabled(),
+                List.of());
+        state.markDirty(replaceCurrent(document, created));
+        return created;
+    }
+
+    private static TraceDocument replaceCurrent(TraceDocument document, TraceVersion version) {
+        return new TraceDocument(
+                document.schemaVersion(),
+                document.id(),
+                document.name(),
+                document.description(),
+                document.createdAt(),
+                Instant.now(),
+                version,
+                document.history());
     }
 }

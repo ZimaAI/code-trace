@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -58,6 +59,40 @@ class CodeTraceControllerTest {
         assertTrue(controller.state().dirty());
     }
 
+    @Test
+    void supportsNodeCrudAndReorderInCurrentVersion() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("trace-3.json", documentWithTwoNodes());
+        CodeTraceController controller = new CodeTraceController(
+                storage,
+                decision -> true,
+                new TraceRecordingService(Clock.fixed(Instant.parse("2026-05-28T10:30:00Z"), ZoneOffset.UTC)),
+                node -> true);
+
+        controller.load("trace-3.json");
+
+        int inserted = controller.addNode(new TraceNode(
+                "n3", "C()", "C#c", "c()", "C.java", 30, "JAVA", "note-c", "C#c"));
+        assertEquals(2, inserted);
+        assertEquals(3, controller.state().currentDocument().current().nodes().size());
+
+        controller.updateNode(1, new TraceNode(
+                "n2", "B-updated()", "B#b", "b()", "B.java", 22, "JAVA", "note-b2", "B#b"));
+        assertEquals("B-updated()", controller.state().currentDocument().current().nodes().get(1).displayName());
+
+        int movedTo = controller.moveNode(2, -1);
+        assertEquals(1, movedTo);
+        List<String> names = controller.state().currentDocument().current().nodes().stream()
+                .map(TraceNode::displayName)
+                .collect(Collectors.toList());
+        assertEquals(List.of("A()", "C()", "B-updated()"), names);
+
+        controller.deleteNode(1);
+        assertEquals(2, controller.state().currentDocument().current().nodes().size());
+        assertEquals("B-updated()", controller.state().currentDocument().current().nodes().get(1).displayName());
+        assertTrue(controller.state().dirty());
+    }
+
     private static TraceDocument document(String description) {
         return new TraceDocument(
                 1, "trace-1", "Trace 1", description,
@@ -95,6 +130,25 @@ class CodeTraceControllerTest {
                         Instant.parse("2026-05-28T10:00:00Z"),
                         true,
                         List.of(node)),
+                List.of());
+    }
+
+    private static TraceDocument documentWithTwoNodes() {
+        TraceNode nodeA = new TraceNode(
+                "n1", "A()", "A#a", "a()", "A.java", 10, "JAVA", "note-a", "A#a");
+        TraceNode nodeB = new TraceNode(
+                "n2", "B()", "B#b", "b()", "B.java", 20, "JAVA", "note-b", "B#b");
+        return new TraceDocument(
+                1, "trace-3", "Trace 3", "description",
+                Instant.parse("2026-05-28T10:00:00Z"),
+                Instant.parse("2026-05-28T10:00:00Z"),
+                new TraceVersion(
+                        "v3",
+                        TraceVersionSource.MANUAL,
+                        Instant.parse("2026-05-28T10:00:00Z"),
+                        Instant.parse("2026-05-28T10:00:00Z"),
+                        true,
+                        List.of(nodeA, nodeB)),
                 List.of());
     }
 }
