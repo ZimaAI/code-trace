@@ -15,12 +15,20 @@ Prioritize a trace that helps a developer understand control flow, state changes
 
 1. Identify the artifact to update.
    - If the user points to an existing trace JSON, update that file in place unless they ask for a new one.
-   - Otherwise create a new file under `code-trace/`, normally `trace-<unix-seconds>.json`.
+   - Otherwise create a new file under `code-trace/`, normally named `yyyyMMdd-主题.json`.
+   - Derive `主题` from the current trace topic or feature name. Chinese is allowed. Remove only filesystem-illegal characters and obvious leading or trailing separators.
+   - If cleaning leaves an empty topic, fall back to `未命名主题`.
+   - If the same-day file name already exists, append a numeric suffix such as `-2`.
 2. Reconstruct the relevant implementation chain.
    - Prefer structural tools such as CodeGraph when available.
    - Otherwise use focused search plus file reads to find entry points, callees, persistence, framework callbacks, and output boundaries.
 3. Select only meaningful nodes.
    - Include entry methods, important method calls, state mutations, branching decisions, persistence or network calls, framework hand-offs, and return points that explain the feature.
+   - For every key cross-symbol call kept in the main chain, record a source node and a target node as a pair.
+   - The source node must use the exact single-line call-site statement.
+   - The target node must use the callee method or function declaration line.
+   - Add a direct `source -> target` link between that pair.
+   - A single source node may link to only one target node, although multiple source nodes may point to the same target node.
    - Skip trivial adjacent statements unless they are necessary to understand a data transformation or branch.
 4. Write the trace summary.
    - Put the feature name in `name`.
@@ -56,7 +64,8 @@ When editing an existing trace:
 - Preserve `schemaVersion`, `id`, `createdAt`, existing node ids, and existing link ids unless the user asks to rebuild the file.
 - Preserve existing notes that are still correct. Only rewrite when they are empty, shallow, or outdated.
 - If the user adds nodes manually, explain only the new nodes unless the surrounding chain is now inconsistent.
-- Keep links aligned with the actual execution or reasoning chain. Do not add links between unrelated nodes just to make the graph denser.
+- Keep links aligned with the actual execution or reasoning chain.
+- Apply the paired source/target and single-source-single-target rules to links you add or modify in this turn. Do not stop only to rebuild untouched historical links.
 
 ## Trace Construction Rules
 
@@ -65,6 +74,7 @@ When editing an existing trace:
 - Keep `line` aligned to the source line that best anchors the explanation.
 - Keep `navigationHint` compatible with how the trace was captured. Reuse the existing style when updating a file.
 - Use `MANUAL` links for hand-curated reasoning chains and `DETECTED` only when the relation was actually auto-detected by tooling.
+- Every generated link must describe one concrete source/target node pair rather than a broad conceptual relationship.
 
 ## Recommended File Strategy
 

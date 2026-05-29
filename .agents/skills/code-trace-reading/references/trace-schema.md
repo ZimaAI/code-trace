@@ -7,6 +7,15 @@ Use this reference when creating or editing trace files for the `code-trace` IDE
 - Trace files live under the project-local `code-trace/` directory.
 - The plugin resolves that directory from the project root in `TraceProjectPaths.traceDirectory()`.
 
+## File Naming For New Traces
+
+- New traces should normally be stored as `yyyyMMdd-主题.json`.
+- `主题` may contain Chinese text.
+- Remove only filesystem-illegal characters and obvious leading or trailing separators.
+- If cleaning leaves an empty topic, fall back to `未命名主题`.
+- If the same-day file name already exists, append a numeric suffix such as `-2`.
+- Older files such as `trace-*.json` remain valid historical artifacts and do not need to be renamed just to pass validation.
+
 ## Top-Level Document Shape
 
 ```json
@@ -76,8 +85,54 @@ Use this reference when creating or editing trace files for the `code-trace` IDE
 ### Link Guidance
 
 - `sourceNodeId` and `targetNodeId` must reference existing nodes.
+- Each link represents exactly one concrete source/target node pair.
+- One source node may point to only one target node.
+- Multiple source nodes may point to the same target node.
+- Self-links are invalid.
 - Use `MANUAL` for a human-curated reasoning chain.
 - Use `DETECTED` only for relationships produced by detection logic.
+
+## Paired Call Example
+
+For a kept cross-symbol call, record both the call-site statement and the callee declaration:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "node-source",
+      "displayName": "TraceDocument document = storage.load(fileName);",
+      "qualifiedName": "demo.StorageCaller#read",
+      "signature": "TraceDocument document = storage.load(fileName);",
+      "filePath": "src/main/java/demo/StorageCaller.java",
+      "line": 42,
+      "language": "JAVA",
+      "note": "This line is the source node because it is the kept call-site statement in the main chain.",
+      "navigationHint": "PsiStatement:42"
+    },
+    {
+      "id": "node-target",
+      "displayName": "public TraceDocument load(String fileName) {",
+      "qualifiedName": "demo.Storage#load",
+      "signature": "public TraceDocument load(String fileName) { ... }",
+      "filePath": "src/main/java/demo/Storage.java",
+      "line": 18,
+      "language": "JAVA",
+      "note": "This declaration is the target node reached by the kept call-site statement.",
+      "navigationHint": "PsiMethod:load"
+    }
+  ],
+  "links": [
+    {
+      "id": "link-source-target",
+      "sourceNodeId": "node-source",
+      "targetNodeId": "node-target",
+      "createdAt": "2026-05-29T07:19:50.042448800Z",
+      "kind": "MANUAL"
+    }
+  ]
+}
+```
 
 ## Description Standard
 
