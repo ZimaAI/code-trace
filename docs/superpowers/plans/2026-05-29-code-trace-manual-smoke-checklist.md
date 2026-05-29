@@ -43,15 +43,18 @@
 
 ## Editor Popup Action
 
-1. Right-click in editor and find `Add to code-trace`.
+1. Right-click in an in-project editor file and find `Add to code-trace`.
 2. Ensure a JSON is selected in Tool Window before triggering the action.
 3. Current line is added as a node and matches editor line text.
-4. If target confirmation appears and you choose `Yes`, target node and `DETECTED` link are created.
+4. Open the saved `code-trace/*.json` file and confirm the new node `filePath` is project-relative, for example `src/main/java/...`.
+5. If target confirmation appears and you choose `Yes`, target node and `DETECTED` link are created.
+6. Trigger the action from a file outside the current project root and confirm a rejection message appears and the trace content does not change.
 
 ## Navigation
 
-1. Double-click a node and verify editor navigates to file and line.
-2. If code moved externally, failure is user-visible and tool window remains stable.
+1. Double-click a node whose `filePath` is relative and verify editor navigates to the correct file and line.
+2. Edit one node JSON manually so `filePath` becomes an absolute path, refresh the Tool Window, and verify double-click navigation still works.
+3. If code moved externally, failure is user-visible and tool window remains stable.
 
 ## Regression
 
