@@ -65,6 +65,27 @@ class CodeNavigationServiceTest {
     }
 
     @Test
+    void navigatesAbsolutePathWhenProjectBasePathIsNull() {
+        Path absoluteFile = tempDir.resolve(Path.of("external", "Legacy.java"));
+        AtomicReference<String> lookedUpPath = new AtomicReference<>();
+
+        CodeNavigationService service = new CodeNavigationService(
+                projectWithBasePath((String) null),
+                path -> {
+                    lookedUpPath.set(path);
+                    return absoluteFile.toString().replace('\\', '/').equals(path)
+                            ? new StubVirtualFile(absoluteFile)
+                            : null;
+                },
+                (file, line) -> {});
+
+        boolean navigated = service.navigate(node(absoluteFile.toString().replace('\\', '/'), 4));
+
+        assertTrue(navigated);
+        assertEquals(absoluteFile.toString().replace('\\', '/'), lookedUpPath.get());
+    }
+
+    @Test
     void returnsFalseWhenFileCannotBeFound() {
         AtomicInteger navigationCalls = new AtomicInteger();
 
@@ -84,12 +105,16 @@ class CodeNavigationServiceTest {
     }
 
     private static Project projectWithBasePath(Path projectRoot) {
+        return projectWithBasePath(projectRoot == null ? null : projectRoot.toString());
+    }
+
+    private static Project projectWithBasePath(String basePath) {
         return (Project) Proxy.newProxyInstance(
                 Project.class.getClassLoader(),
                 new Class<?>[] {Project.class},
                 (proxy, method, args) -> switch (method.getName()) {
-                    case "getBasePath" -> projectRoot.toString();
-                    case "toString" -> "Project(" + projectRoot + ")";
+                    case "getBasePath" -> basePath;
+                    case "toString" -> "Project(" + basePath + ")";
                     default -> unsupported(method);
                 });
     }

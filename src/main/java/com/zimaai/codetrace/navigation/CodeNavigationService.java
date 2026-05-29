@@ -33,11 +33,14 @@ public final class CodeNavigationService {
         if (node == null || node.filePath() == null || node.filePath().isBlank()) {
             return false;
         }
+        Path storedPath = Path.of(node.filePath());
         String basePath = project.getBasePath();
-        if (basePath == null || basePath.isBlank()) {
+        if (!storedPath.isAbsolute() && (basePath == null || basePath.isBlank())) {
             return false;
         }
-        String path = TraceNodePathResolver.resolveForNavigation(Path.of(basePath), node.filePath());
+        String path = storedPath.isAbsolute()
+                ? storedPath.normalize().toString().replace('\\', '/')
+                : TraceNodePathResolver.resolveForNavigation(Path.of(basePath), node.filePath());
         var virtualFile = fileFinder.apply(path);
         if (virtualFile == null) {
             return false;
