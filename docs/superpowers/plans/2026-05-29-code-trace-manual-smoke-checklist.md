@@ -10,15 +10,23 @@
 
 1. `code-trace` is visible in the left tool window bar.
 2. Open it and confirm visible controls:
-   - Top buttons: `Refresh / Save Trace Note / Save Node Note / Set as Source / Link To Here / Unlink`
+   - Top buttons: `Refresh`
    - Left JSON file list
-   - Right trace note, node list, node note
-3. Confirm removed controls are not visible:
+   - Right trace note, wrapped node toolbar, node list, node note
+3. Confirm removed controls are not visible in the top toolbar:
+   - `Save Trace Note`
+   - `Save Node Note`
+   - `Set as Source`
+   - `Link To Here`
+   - `Unlink`
+4. Confirm removed controls are not visible:
    - `Start Recording`
    - `Stop Recording`
    - `Save`
    - `Add Node`
    - `History`
+5. Confirm node toolbar contains:
+   - `Edit / Delete / Move Up / Move Down / Set as Source / Link To Here / Unlink / Go to Source / Go to Target`
 
 ## File Management
 
@@ -38,9 +46,17 @@
 1. Every node row text is exactly one line of code (`displayName`).
 2. Select one node and click `Set as Source`; the same node remains selected and link status shows source id.
 3. Select another node and click `Link To Here`; source/target styling appears and the target node remains selected.
-4. Click `Unlink`; linked styling is removed and the current node remains selected.
-5. Use `Move Up` or `Move Down` on a selected node and confirm the same node remains selected after the list refreshes.
-6. Delete the currently selected node and confirm the node list ends with no selection.
+4. Click `Go to Source`; editor navigates to the linked source node code.
+5. Click `Go to Target`; editor navigates to the linked target node code.
+6. Click `Unlink`; linked styling is removed, the current node remains selected, and both jump buttons become disabled.
+7. Use `Move Up` or `Move Down` on a selected node and confirm the same node remains selected after the list refreshes.
+8. Delete the currently selected linked node and confirm the linked pair is removed, the node list ends with no selection, and both jump buttons are disabled.
+
+## Responsive Layout
+
+1. Narrow the tool window until the node toolbar cannot fit on one row.
+2. Confirm the node toolbar wraps onto multiple lines.
+3. Confirm no node toolbar button is hidden or moved into an overflow menu.
 
 ## Editor Popup Action
 
