@@ -1,6 +1,7 @@
 package com.zimaai.codetrace.toolwindow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -82,6 +83,24 @@ class CodeTraceControllerTest {
                 () -> controller.linkPendingSourceTo("node-3", TraceLinkKind.MANUAL));
 
         assertEquals("Each node can participate in at most one link", exception.getMessage());
+    }
+
+    @Test
+    void storesAndClearsPreferredSelectedNodeIdAcrossRefreshPaths() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("trace-4.json", documentWithThreeNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+
+        controller.load("trace-4.json");
+        controller.preferSelectedNode("node-2");
+
+        assertEquals("node-2", controller.state().preferredSelectedNodeId());
+        assertEquals("node-2", controller.consumePreferredSelectedNodeId());
+        assertNull(controller.state().preferredSelectedNodeId());
+
+        controller.preferSelectedNode("node-3");
+        controller.refreshCurrentFile();
+        assertNull(controller.state().preferredSelectedNodeId());
     }
 
     private static TraceDocument documentWithThreeNodes() {

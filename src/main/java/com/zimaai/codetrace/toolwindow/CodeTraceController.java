@@ -165,6 +165,14 @@ public final class CodeTraceController {
         return state;
     }
 
+    public void preferSelectedNode(String nodeId) {
+        state.setPreferredSelectedNodeId(nodeId);
+    }
+
+    public String consumePreferredSelectedNodeId() {
+        return state.consumePreferredSelectedNodeId();
+    }
+
     private TraceDocument requireDocument() {
         return Objects.requireNonNull(state.currentDocument(), "currentDocument");
     }

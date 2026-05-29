@@ -6,6 +6,7 @@ public final class CodeTraceState {
     private String currentFileName;
     private TraceDocument currentDocument;
     private String pendingLinkSourceId;
+    private String preferredSelectedNodeId;
 
     public String currentFileName() {
         return currentFileName;
@@ -19,10 +20,15 @@ public final class CodeTraceState {
         return pendingLinkSourceId;
     }
 
+    public String preferredSelectedNodeId() {
+        return preferredSelectedNodeId;
+    }
+
     void load(String fileName, TraceDocument document) {
         this.currentFileName = fileName;
         this.currentDocument = document;
         this.pendingLinkSourceId = null;
+        this.preferredSelectedNodeId = null;
     }
 
     void replaceDocument(TraceDocument document) {
@@ -35,5 +41,15 @@ public final class CodeTraceState {
 
     void clearPendingLinkSource() {
         this.pendingLinkSourceId = null;
+    }
+
+    void setPreferredSelectedNodeId(String preferredSelectedNodeId) {
+        this.preferredSelectedNodeId = preferredSelectedNodeId;
+    }
+
+    String consumePreferredSelectedNodeId() {
+        String preferred = preferredSelectedNodeId;
+        preferredSelectedNodeId = null;
+        return preferred;
     }
 }
