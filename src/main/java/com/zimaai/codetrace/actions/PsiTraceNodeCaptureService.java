@@ -23,6 +23,7 @@ public final class PsiTraceNodeCaptureService implements TraceNodeCaptureService
 
     @Override
     public Optional<TraceNode> detectTarget(Project project, Editor editor, PsiFile psiFile) {
+        Path root = projectRoot(project);
         PsiElement callable = findCallableOwner(psiFile.findElementAt(editor.getCaretModel().getOffset()));
         if (callable == null) {
             return Optional.empty();
@@ -37,10 +38,12 @@ public final class PsiTraceNodeCaptureService implements TraceNodeCaptureService
         }
         int zeroBasedLine = document.getLineNumber(target.getTextRange().getStartOffset());
         try {
-            return Optional.of(buildNodeFromLine(
-                    projectRoot(project), target.getContainingFile(), document, zeroBasedLine, target));
+            return Optional.of(buildNodeFromLine(root, target.getContainingFile(), document, zeroBasedLine, target));
         } catch (IllegalArgumentException exception) {
-            return Optional.empty();
+            if (TraceNodePathResolver.externalFileMessage().equals(exception.getMessage())) {
+                return Optional.empty();
+            }
+            throw exception;
         }
     }
 
