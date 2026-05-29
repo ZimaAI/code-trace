@@ -70,7 +70,7 @@ function validateNode(node, index, ids, errors) {
   }
 }
 
-function validateLink(link, index, nodeIds, linkIds, errors) {
+function validateLink(link, index, nodeIds, linkIds, sourceTargets, errors) {
   const prefix = `links[${index}]`;
   if (link == null || typeof link !== "object" || Array.isArray(link)) {
     errors.push(`${prefix} must be an object`);
@@ -88,6 +88,15 @@ function validateLink(link, index, nodeIds, linkIds, errors) {
       errors.push(`${prefix}.id duplicates an earlier link id: ${link.id}`);
     }
     linkIds.add(link.id);
+  }
+  if (typeof link.sourceNodeId === "string" && typeof link.targetNodeId === "string") {
+    if (link.sourceNodeId === link.targetNodeId) {
+      errors.push(`${prefix} must not link a node to itself`);
+    }
+
+    const targets = sourceTargets.get(link.sourceNodeId) || new Set();
+    targets.add(link.targetNodeId);
+    sourceTargets.set(link.sourceNodeId, targets);
   }
   if (typeof link.sourceNodeId === "string" && !nodeIds.has(link.sourceNodeId)) {
     errors.push(`${prefix}.sourceNodeId does not reference an existing node: ${link.sourceNodeId}`);
@@ -122,11 +131,22 @@ function validateDocument(document) {
 
   const nodeIds = new Set();
   const linkIds = new Set();
+  const sourceTargets = new Map();
   if (Array.isArray(document.nodes)) {
     document.nodes.forEach((node, index) => validateNode(node, index, nodeIds, errors));
   }
   if (Array.isArray(document.links)) {
-    document.links.forEach((link, index) => validateLink(link, index, nodeIds, linkIds, errors));
+    document.links.forEach((link, index) =>
+      validateLink(link, index, nodeIds, linkIds, sourceTargets, errors)
+    );
+  }
+
+  for (const [sourceNodeId, targetNodeIds] of sourceTargets.entries()) {
+    if (targetNodeIds.size > 1) {
+      errors.push(
+        `source node ${sourceNodeId} links to multiple targets: ${Array.from(targetNodeIds).join(", ")}`
+      );
+    }
   }
 
   return errors;

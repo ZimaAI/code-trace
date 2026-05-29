@@ -44,6 +44,57 @@ function runNewCommand({ cwd, name, traceDir }) {
   return spawnSync(process.execPath, args, { cwd, encoding: "utf8" });
 }
 
+function runValidateCommand({ cwd, inputPath }) {
+  const args = [scriptPath, "validate", "--input", inputPath];
+  return spawnSync(process.execPath, args, { cwd, encoding: "utf8" });
+}
+
+function writeJson(filePath, value) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function traceNode(id, displayName) {
+  return {
+    id,
+    displayName,
+    qualifiedName: id,
+    signature: displayName,
+    filePath: "src/main/java/demo/Sample.java",
+    line: 1,
+    language: "JAVA",
+    note: "",
+    navigationHint: id,
+  };
+}
+
+function traceLink(id, sourceNodeId, targetNodeId) {
+  return {
+    id,
+    sourceNodeId,
+    targetNodeId,
+    createdAt: "2026-05-29T10:00:00Z",
+    kind: "MANUAL",
+  };
+}
+
+function traceDocument(links) {
+  return {
+    schemaVersion: 2,
+    id: "trace-1",
+    name: "登录流程",
+    description: "trace summary",
+    createdAt: "2026-05-29T10:00:00Z",
+    updatedAt: "2026-05-29T10:00:00Z",
+    nodes: [
+      traceNode("node-source", "TraceDocument document = storage.load(fileName);"),
+      traceNode("node-target-a", "public TraceDocument load(String fileName) {"),
+      traceNode("node-target-b", "public TraceDocument loadBackup(String fileName) {"),
+      traceNode("node-source-2", "TraceDocument another = storage.load(fileName);"),
+    ],
+    links,
+  };
+}
+
 function createdPathFrom(result) {
   const line = result.stdout
     .split(/\r?\n/)
@@ -109,4 +160,45 @@ test("同日同主题重名时追加 -2 和 -3", () => {
   assert.equal(createdPathFrom(first), path.resolve(traceDir, `${fixedDate}-dup-topic.json`));
   assert.equal(createdPathFrom(second), path.resolve(traceDir, `${fixedDate}-dup-topic-2.json`));
   assert.equal(createdPathFrom(third), path.resolve(traceDir, `${fixedDate}-dup-topic-3.json`));
+});
+
+test("validate 允许多个 source 指向同一个 target", () => {
+  const tempDir = createTempDir();
+  const inputPath = path.join(tempDir, "valid-trace.json");
+  writeJson(inputPath, traceDocument([
+    traceLink("link-1", "node-source", "node-target-a"),
+    traceLink("link-2", "node-source-2", "node-target-a"),
+  ]));
+
+  const result = runValidateCommand({ cwd: tempDir, inputPath });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Valid trace:/);
+});
+
+test("validate 拒绝同一 source 指向多个 target", () => {
+  const tempDir = createTempDir();
+  const inputPath = path.join(tempDir, "invalid-trace.json");
+  writeJson(inputPath, traceDocument([
+    traceLink("link-1", "node-source", "node-target-a"),
+    traceLink("link-2", "node-source", "node-target-b"),
+  ]));
+
+  const result = runValidateCommand({ cwd: tempDir, inputPath });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /source node node-source links to multiple targets/);
+});
+
+test("validate 拒绝自链接", () => {
+  const tempDir = createTempDir();
+  const inputPath = path.join(tempDir, "self-link.json");
+  writeJson(inputPath, traceDocument([
+    traceLink("link-1", "node-source", "node-source"),
+  ]));
+
+  const result = runValidateCommand({ cwd: tempDir, inputPath });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /links\[0\] must not link a node to itself/);
 });
