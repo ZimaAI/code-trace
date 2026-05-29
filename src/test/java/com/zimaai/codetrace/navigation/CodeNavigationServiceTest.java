@@ -50,6 +50,7 @@ class CodeNavigationServiceTest {
     void passesAbsolutePathDirectlyToFileFinder() {
         Path absoluteFile = tempDir.resolve(Path.of("external", "External.java"));
         AtomicReference<String> lookedUpPath = new AtomicReference<>();
+        AtomicInteger navigationCalls = new AtomicInteger();
 
         CodeNavigationService service = new CodeNavigationService(
                 projectWithBasePath(tempDir.resolve("project")),
@@ -57,11 +58,13 @@ class CodeNavigationServiceTest {
                     lookedUpPath.set(path);
                     return null;
                 },
-                (file, line) -> {});
+                (file, line) -> navigationCalls.incrementAndGet());
 
-        service.navigate(node(absoluteFile.toString().replace('\\', '/'), 3));
+        boolean navigated = service.navigate(node(absoluteFile.toString().replace('\\', '/'), 3));
 
+        assertFalse(navigated);
         assertEquals(absoluteFile.toString().replace('\\', '/'), lookedUpPath.get());
+        assertEquals(0, navigationCalls.get());
     }
 
     @Test
@@ -86,6 +89,44 @@ class CodeNavigationServiceTest {
     }
 
     @Test
+    void treatsWindowsStyleAbsolutePathStringAsAbsolute() {
+        String windowsAbsolutePath = "C:/repo/A.java";
+        AtomicReference<String> lookedUpPath = new AtomicReference<>();
+
+        CodeNavigationService service = new CodeNavigationService(
+                projectWithBasePath(tempDir.resolve("project")),
+                path -> {
+                    lookedUpPath.set(path);
+                    return windowsAbsolutePath.equals(path) ? new StubVirtualFile(windowsAbsolutePath) : null;
+                },
+                (file, line) -> {});
+
+        boolean navigated = service.navigate(node(windowsAbsolutePath, 2));
+
+        assertTrue(navigated);
+        assertEquals(windowsAbsolutePath, lookedUpPath.get());
+    }
+
+    @Test
+    void treatsUnixStyleAbsolutePathStringAsAbsolute() {
+        String unixAbsolutePath = "/repo/A.java";
+        AtomicReference<String> lookedUpPath = new AtomicReference<>();
+
+        CodeNavigationService service = new CodeNavigationService(
+                projectWithBasePath(tempDir.resolve("project")),
+                path -> {
+                    lookedUpPath.set(path);
+                    return unixAbsolutePath.equals(path) ? new StubVirtualFile(unixAbsolutePath) : null;
+                },
+                (file, line) -> {});
+
+        boolean navigated = service.navigate(node(unixAbsolutePath, 2));
+
+        assertTrue(navigated);
+        assertEquals(unixAbsolutePath, lookedUpPath.get());
+    }
+
+    @Test
     void returnsFalseWhenFileCannotBeFound() {
         AtomicInteger navigationCalls = new AtomicInteger();
 
@@ -98,6 +139,15 @@ class CodeNavigationServiceTest {
 
         assertFalse(navigated);
         assertEquals(0, navigationCalls.get());
+    }
+
+    @Test
+    void publicConstructorReturnsFalseForNullNode() {
+        CodeNavigationService service = new CodeNavigationService(projectWithBasePath(tempDir.resolve("project")));
+
+        boolean navigated = service.navigate(null);
+
+        assertFalse(navigated);
     }
 
     private static TraceNode node(String filePath, int line) {
@@ -137,6 +187,11 @@ class CodeNavigationServiceTest {
         private StubVirtualFile(Path path) {
             super(path.getFileName().toString(), "");
             this.path = path.toString().replace('\\', '/');
+        }
+
+        private StubVirtualFile(String path) {
+            super(Path.of(path.replace('\\', '/')).getFileName().toString(), "");
+            this.path = path.replace('\\', '/');
         }
 
         @Override

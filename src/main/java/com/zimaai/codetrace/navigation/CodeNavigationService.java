@@ -33,13 +33,13 @@ public final class CodeNavigationService {
         if (node == null || node.filePath() == null || node.filePath().isBlank()) {
             return false;
         }
-        Path storedPath = Path.of(node.filePath());
+        boolean absolutePath = isAbsoluteStoredPath(node.filePath());
         String basePath = project.getBasePath();
-        if (!storedPath.isAbsolute() && (basePath == null || basePath.isBlank())) {
+        if (!absolutePath && (basePath == null || basePath.isBlank())) {
             return false;
         }
-        String path = storedPath.isAbsolute()
-                ? storedPath.normalize().toString().replace('\\', '/')
+        String path = absolutePath
+                ? node.filePath().replace('\\', '/')
                 : TraceNodePathResolver.resolveForNavigation(Path.of(basePath), node.filePath());
         var virtualFile = fileFinder.apply(path);
         if (virtualFile == null) {
@@ -48,5 +48,15 @@ public final class CodeNavigationService {
         int line = Math.max(node.line() - 1, 0);
         navigator.accept(virtualFile, line);
         return true;
+    }
+
+    private static boolean isAbsoluteStoredPath(String path) {
+        if (path.startsWith("/") || path.startsWith("\\") || path.startsWith("//") || path.startsWith("\\\\")) {
+            return true;
+        }
+        return path.length() >= 3
+                && Character.isLetter(path.charAt(0))
+                && path.charAt(1) == ':'
+                && (path.charAt(2) == '/' || path.charAt(2) == '\\');
     }
 }
