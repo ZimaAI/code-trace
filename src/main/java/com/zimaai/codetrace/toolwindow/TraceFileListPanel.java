@@ -1,7 +1,9 @@
 package com.zimaai.codetrace.toolwindow;
 
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.ToolbarDecorator;
 import com.intellij.ui.components.JBList;
+import com.intellij.ui.components.JBScrollPane;
 import java.awt.BorderLayout;
 import java.util.Objects;
 import javax.swing.JComponent;
@@ -12,7 +14,7 @@ public final class TraceFileListPanel {
     private final JPanel root = new JPanel(new BorderLayout());
 
     public TraceFileListPanel() {
-        root.add(ToolbarDecorator.createDecorator(list).createPanel(), BorderLayout.CENTER);
+        root.add(createDecoratorPanel(), BorderLayout.CENTER);
     }
 
     public void configureActions(
@@ -27,23 +29,27 @@ public final class TraceFileListPanel {
         Objects.requireNonNull(deleteAction, "deleteAction");
         Objects.requireNonNull(refreshAction, "refreshAction");
         root.removeAll();
-        root.add(ToolbarDecorator.createDecorator(list)
-                .setAddAction(actionButton -> createAction.run())
-                .setEditAction(actionButton -> renameAction.run())
-                .setRemoveAction(actionButton -> deleteAction.run())
-                .addExtraAction(new com.intellij.ui.AnActionButton("Copy") {
-                    @Override
-                    public void actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent anActionEvent) {
-                        copyAction.run();
-                    }
-                })
-                .addExtraAction(new com.intellij.ui.AnActionButton("Refresh") {
-                    @Override
-                    public void actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent anActionEvent) {
-                        refreshAction.run();
-                    }
-                })
-                .createPanel(), BorderLayout.CENTER);
+        if (ApplicationManager.getApplication() == null) {
+            root.add(new JBScrollPane(list), BorderLayout.CENTER);
+        } else {
+            root.add(ToolbarDecorator.createDecorator(list)
+                    .setAddAction(actionButton -> createAction.run())
+                    .setEditAction(actionButton -> renameAction.run())
+                    .setRemoveAction(actionButton -> deleteAction.run())
+                    .addExtraAction(new com.intellij.ui.AnActionButton("Copy") {
+                        @Override
+                        public void actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent anActionEvent) {
+                            copyAction.run();
+                        }
+                    })
+                    .addExtraAction(new com.intellij.ui.AnActionButton("Refresh") {
+                        @Override
+                        public void actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent anActionEvent) {
+                            refreshAction.run();
+                        }
+                    })
+                    .createPanel(), BorderLayout.CENTER);
+        }
         root.revalidate();
         root.repaint();
     }
@@ -54,5 +60,12 @@ public final class TraceFileListPanel {
 
     public JBList<String> list() {
         return list;
+    }
+
+    private JComponent createDecoratorPanel() {
+        if (ApplicationManager.getApplication() == null) {
+            return new JBScrollPane(list);
+        }
+        return ToolbarDecorator.createDecorator(list).createPanel();
     }
 }

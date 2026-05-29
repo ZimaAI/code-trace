@@ -1,6 +1,7 @@
 package com.zimaai.codetrace.toolwindow;
 
 import com.intellij.ui.JBSplitter;
+import com.zimaai.codetrace.model.TraceLink;
 import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
 import java.awt.BorderLayout;
@@ -171,6 +172,8 @@ public final class CodeTracePanel {
         editorPanel.setAsSourceButton().addActionListener(event -> setSelectedAsSource());
         editorPanel.linkToHereButton().addActionListener(event -> linkToSelectedNode());
         editorPanel.unlinkButton().addActionListener(event -> unlinkSelectedNode());
+        editorPanel.goToSourceButton().addActionListener(event -> goToLinkedSource());
+        editorPanel.goToTargetButton().addActionListener(event -> goToLinkedTarget());
     }
 
     private void addButton(JPanel toolbar, String label, Runnable action) {
@@ -328,6 +331,20 @@ public final class CodeTracePanel {
         rebuildView();
     }
 
+    private void goToLinkedSource() {
+        TraceNode sourceNode = findLinkedSourceNode();
+        if (sourceNode != null) {
+            controller.navigateToNode(sourceNode);
+        }
+    }
+
+    private void goToLinkedTarget() {
+        TraceNode targetNode = findLinkedTargetNode();
+        if (targetNode != null) {
+            controller.navigateToNode(targetNode);
+        }
+    }
+
     private NodeInput showNodeDialog(String title, TraceNode initial) {
         javax.swing.JTextField nameField = new javax.swing.JTextField(initial == null ? "" : initial.displayName());
         javax.swing.JTextField qualifiedField = new javax.swing.JTextField(initial == null ? "" : initial.qualifiedName());
@@ -437,6 +454,8 @@ public final class CodeTracePanel {
         boolean hasDocument = document != null;
         boolean hasSelection = findSelectedNode() != null;
         boolean hasPendingSource = controller.state().pendingLinkSourceId() != null;
+        TraceNode linkedSourceNode = findLinkedSourceNode();
+        TraceNode linkedTargetNode = findLinkedTargetNode();
 
         if (hasDocument && !syncingTraceNote) {
             editorPanel.saveTraceNoteButton().setEnabled(!persistedTraceNote.equals(editorPanel.traceNote().getText()));
@@ -457,6 +476,8 @@ public final class CodeTracePanel {
         editorPanel.setAsSourceButton().setEnabled(hasSelection);
         editorPanel.linkToHereButton().setEnabled(hasSelection && hasPendingSource);
         editorPanel.unlinkButton().setEnabled(hasSelection);
+        editorPanel.goToSourceButton().setEnabled(linkedSourceNode != null);
+        editorPanel.goToTargetButton().setEnabled(linkedTargetNode != null);
     }
 
     private TraceNode findSelectedNode() {
@@ -465,6 +486,36 @@ public final class CodeTracePanel {
         }
         return controller.state().currentDocument().nodes().stream()
                 .filter(node -> node.id().equals(selectedNodeId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private TraceLink findSelectedLink() {
+        if (selectedNodeId == null || controller.state().currentDocument() == null) {
+            return null;
+        }
+        return controller.state().currentDocument().links().stream()
+                .filter(link -> selectedNodeId.equals(link.sourceNodeId()) || selectedNodeId.equals(link.targetNodeId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private TraceNode findLinkedSourceNode() {
+        TraceLink link = findSelectedLink();
+        return link == null ? null : findNodeById(link.sourceNodeId());
+    }
+
+    private TraceNode findLinkedTargetNode() {
+        TraceLink link = findSelectedLink();
+        return link == null ? null : findNodeById(link.targetNodeId());
+    }
+
+    private TraceNode findNodeById(String nodeId) {
+        if (nodeId == null || controller.state().currentDocument() == null) {
+            return null;
+        }
+        return controller.state().currentDocument().nodes().stream()
+                .filter(node -> node.id().equals(nodeId))
                 .findFirst()
                 .orElse(null);
     }
