@@ -1,0 +1,7 @@
+interface:
+  display_name: "Code Trace Reading"
+  short_description: "生成并讲解 code-trace 追踪文件"
+  default_prompt: "Use $code-trace-reading to analyze a feature in this project and produce a code-trace JSON with detailed node notes."
+
+policy:
+  allow_implicit_invocation: true
