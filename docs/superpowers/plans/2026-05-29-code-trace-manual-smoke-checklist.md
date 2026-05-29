@@ -36,18 +36,19 @@
 ## Nodes And Links
 
 1. Every node row text is exactly one line of code (`displayName`).
-2. Select one node and click `Set as Source`; link status shows source id.
-3. Select another node and click `Link To Here`; source/target styling appears.
-4. Click `Unlink`; linked styling is removed.
-5. For linked nodes, `Move Up / Move Down / Delete` affects the pair.
+2. Select one node and click `Set as Source`; the same node remains selected and link status shows source id.
+3. Select another node and click `Link To Here`; source/target styling appears and the target node remains selected.
+4. Click `Unlink`; linked styling is removed and the current node remains selected.
+5. Use `Move Up` or `Move Down` on a selected node and confirm the same node remains selected after the list refreshes.
+6. Delete the currently selected node and confirm the node list ends with no selection.
 
 ## Editor Popup Action
 
 1. Right-click in an in-project editor file and find `Add to code-trace`.
 2. Ensure a JSON is selected in Tool Window before triggering the action.
-3. Current line is added as a node and matches editor line text.
-4. Open the saved `code-trace/*.json` file and confirm the new node `filePath` is project-relative, for example `src/main/java/...`.
-5. If target confirmation appears and you choose `Yes`, target node and `DETECTED` link are created.
+3. Trigger `Add to code-trace` and confirm the source node becomes the selected node in the Tool Window.
+4. If the same source line already exists, trigger the action again and confirm the existing source node becomes selected instead of keeping the previous selection.
+5. If target confirmation appears and you choose `Yes`, target node and `DETECTED` link are created, but the selected node remains the source node.
 6. Trigger the action from a file outside the current project root and confirm a rejection message appears and the trace content does not change.
 
 ## Navigation
