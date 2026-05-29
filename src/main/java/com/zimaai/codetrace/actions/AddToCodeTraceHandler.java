@@ -30,7 +30,13 @@ public final class AddToCodeTraceHandler {
             prompts.showSelectTraceMessage(project);
             return;
         }
-        TraceNode source = captureService.captureCurrentLine(project, editor, psiFile);
+        TraceNode source;
+        try {
+            source = captureService.captureCurrentLine(project, editor, psiFile);
+        } catch (IllegalArgumentException exception) {
+            prompts.showCaptureError(project, exception.getMessage());
+            return;
+        }
         int sourceIndex = controller.addOrReuseNode(source);
         Optional<TraceNode> detectedTarget = captureService.detectTarget(project, editor, psiFile);
         if (detectedTarget.isPresent()

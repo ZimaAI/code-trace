@@ -1,6 +1,7 @@
 package com.zimaai.codetrace.actions;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zimaai.codetrace.model.TraceDocument;
@@ -64,6 +65,30 @@ class AddToCodeTraceHandlerTest {
         assertTrue(prompts.confirmCalled);
     }
 
+    @Test
+    void doesNotMutateTraceWhenSourceCaptureIsRejected() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.createNewFile("trace-1.json", "Trace 1");
+
+        AtomicBoolean refreshed = new AtomicBoolean(false);
+        RecordingPrompts prompts = new RecordingPrompts(true);
+        AddToCodeTraceHandler handler = new AddToCodeTraceHandler(
+                controller,
+                new RejectingCaptureService("Source file is outside project root"),
+                prompts,
+                () -> refreshed.set(true));
+
+        handler.handle(null, null, null);
+
+        TraceDocument document = controller.state().currentDocument();
+        assertTrue(document.nodes().isEmpty());
+        assertTrue(document.links().isEmpty());
+        assertFalse(refreshed.get());
+        assertFalse(prompts.confirmCalled);
+        assertEquals("Source file is outside project root", prompts.captureErrorMessage);
+    }
+
     private static final class FakeCaptureService implements TraceNodeCaptureService {
         private final TraceNode source;
         private final Optional<TraceNode> target;
@@ -93,6 +118,7 @@ class AddToCodeTraceHandlerTest {
     private static final class RecordingPrompts implements TraceUserPrompts {
         private final boolean confirm;
         private boolean confirmCalled;
+        private String captureErrorMessage;
 
         private RecordingPrompts(boolean confirm) {
             this.confirm = confirm;
@@ -113,6 +139,35 @@ class AddToCodeTraceHandlerTest {
 
         @Override
         public void showLinkError(com.intellij.openapi.project.Project project, String message) {
+        }
+
+        @Override
+        public void showCaptureError(com.intellij.openapi.project.Project project, String message) {
+            captureErrorMessage = message;
+        }
+    }
+
+    private static final class RejectingCaptureService implements TraceNodeCaptureService {
+        private final String message;
+
+        private RejectingCaptureService(String message) {
+            this.message = message;
+        }
+
+        @Override
+        public TraceNode captureCurrentLine(
+                com.intellij.openapi.project.Project project,
+                com.intellij.openapi.editor.Editor editor,
+                com.intellij.psi.PsiFile psiFile) {
+            throw new IllegalArgumentException(message);
+        }
+
+        @Override
+        public Optional<TraceNode> detectTarget(
+                com.intellij.openapi.project.Project project,
+                com.intellij.openapi.editor.Editor editor,
+                com.intellij.psi.PsiFile psiFile) {
+            throw new AssertionError("detectTarget should not be called when capture fails");
         }
     }
 }

@@ -23,4 +23,9 @@ public final class SwingTraceUserPrompts implements TraceUserPrompts {
     public void showLinkError(Project project, String message) {
         JOptionPane.showMessageDialog(null, message);
     }
+
+    @Override
+    public void showCaptureError(Project project, String message) {
+        JOptionPane.showMessageDialog(null, message);
+    }
 }

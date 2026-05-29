@@ -8,4 +8,6 @@ public interface TraceUserPrompts {
     boolean confirmDetectedLink(Project project, String sourceDisplayName, String targetDisplayName);
 
     void showLinkError(Project project, String message);
+
+    void showCaptureError(Project project, String message);
 }

@@ -8,6 +8,8 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.zimaai.codetrace.model.TraceNode;
+import com.zimaai.codetrace.navigation.TraceNodePathResolver;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,7 +18,7 @@ public final class PsiTraceNodeCaptureService implements TraceNodeCaptureService
     public TraceNode captureCurrentLine(Project project, Editor editor, PsiFile psiFile) {
         PsiElement callable = findCallableOwner(psiFile.findElementAt(editor.getCaretModel().getOffset()));
         int zeroBasedLine = editor.getCaretModel().getLogicalPosition().line;
-        return buildNodeFromLine(psiFile, editor.getDocument(), zeroBasedLine, callable);
+        return buildNodeFromLine(projectRoot(project), psiFile, editor.getDocument(), zeroBasedLine, callable);
     }
 
     @Override
@@ -34,10 +36,16 @@ public final class PsiTraceNodeCaptureService implements TraceNodeCaptureService
             return Optional.empty();
         }
         int zeroBasedLine = document.getLineNumber(target.getTextRange().getStartOffset());
-        return Optional.of(buildNodeFromLine(target.getContainingFile(), document, zeroBasedLine, target));
+        try {
+            return Optional.of(buildNodeFromLine(
+                    projectRoot(project), target.getContainingFile(), document, zeroBasedLine, target));
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
+        }
     }
 
-    private static TraceNode buildNodeFromLine(PsiFile psiFile, Document document, int zeroBasedLine, PsiElement callable) {
+    private static TraceNode buildNodeFromLine(
+            Path projectRoot, PsiFile psiFile, Document document, int zeroBasedLine, PsiElement callable) {
         int safeLine = Math.max(0, Math.min(zeroBasedLine, Math.max(0, document.getLineCount() - 1)));
         int start = document.getLineStartOffset(safeLine);
         int end = document.getLineEndOffset(safeLine);
@@ -48,16 +56,25 @@ public final class PsiTraceNodeCaptureService implements TraceNodeCaptureService
         String qualifiedName = callable == null ? "" : callable.toString();
         String signature = callable == null ? "" : callable.getText().replace('\r', ' ').replace('\n', ' ');
         String navigationHint = qualifiedName;
+        String storedPath = file == null ? "" : TraceNodePathResolver.toStoredPath(projectRoot, Path.of(file.getPath()));
         return new TraceNode(
                 "node-" + UUID.randomUUID(),
                 lineText,
                 qualifiedName,
                 signature,
-                file == null ? "" : file.getPath(),
+                storedPath,
                 safeLine + 1,
                 psiFile.getLanguage().getID(),
                 "",
                 navigationHint);
+    }
+
+    private static Path projectRoot(Project project) {
+        String basePath = project == null ? null : project.getBasePath();
+        if (basePath == null || basePath.isBlank()) {
+            throw new IllegalArgumentException("Project base path is unavailable");
+        }
+        return Path.of(basePath);
     }
 
     private static PsiElement findCallableOwner(PsiElement element) {
