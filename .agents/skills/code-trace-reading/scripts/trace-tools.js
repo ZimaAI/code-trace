@@ -176,7 +176,7 @@ function createUniqueOutputPath(options) {
     return options.output;
   }
   const now = new Date();
-  const traceDir = options["trace-dir"] || "trace";
+  const traceDir = options["trace-dir"] || "code-trace";
   const datePrefix = formatDatePrefix(now);
   const topic = sanitizeTopicForFileName(options.name || "");
   const baseName = `${datePrefix}-${topic}`;

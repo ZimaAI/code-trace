@@ -116,6 +116,17 @@ test("new 命令在未传 output 时按 yyyyMMdd-主题 命名", () => {
   assert.ok(fs.existsSync(expectedPath));
 });
 
+test("未传 trace-dir 时默认输出到 code-trace 目录", () => {
+  const tempDir = createTempDir();
+  const result = runNewCommand({ cwd: tempDir, name: "default-dir-topic" });
+
+  assert.equal(result.status, 0, result.stderr);
+  const createdPath = createdPathFrom(result);
+  const expectedPath = path.resolve(tempDir, "code-trace", `${fixedDate}-default-dir-topic.json`);
+  assert.equal(createdPath, expectedPath);
+  assert.ok(fs.existsSync(expectedPath));
+});
+
 test("主题保留中文并清洗非法文件名字符", () => {
   const tempDir = createTempDir();
   const traceDir = path.join(tempDir, "trace");
