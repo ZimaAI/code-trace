@@ -7,6 +7,7 @@ import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceLink;
 import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -102,5 +103,38 @@ class TraceJsonMapperTest {
         assertEquals("source note", restored.nodes().get(0).note());
         assertEquals(1, restored.links().size());
         assertEquals(TraceLinkKind.DETECTED, restored.links().get(0).kind());
+    }
+
+    @Test
+    void preservesAbsoluteFilePathWhenReadingAndWritingSchemaTwoDocument() throws Exception {
+        String absolutePath = Path.of("C:\\workspace\\code-trace\\src\\AuthController.java")
+                .toString()
+                .replace('\\', '/');
+        TraceNode node = new TraceNode(
+                "node-1",
+                "return authService.login(user);",
+                "AuthController#login",
+                "login(User user)",
+                absolutePath,
+                21,
+                "JAVA",
+                "note",
+                "AuthController#login(User)");
+        TraceDocument document = new TraceDocument(
+                2,
+                "trace-auth-login",
+                "Auth Login",
+                "trace note",
+                Instant.parse("2026-05-29T09:00:00Z"),
+                Instant.parse("2026-05-29T10:00:00Z"),
+                List.of(node),
+                List.of());
+
+        TraceJsonMapper mapper = new TraceJsonMapper();
+        String json = mapper.write(document);
+        TraceDocument restored = mapper.read(json);
+
+        assertTrue(json.contains(absolutePath));
+        assertEquals(absolutePath, restored.nodes().get(0).filePath());
     }
 }
