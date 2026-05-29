@@ -139,9 +139,48 @@ function writeJson(outputPath, document) {
   return targetPath;
 }
 
+function formatDatePrefix(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function sanitizeTopicForFileName(topic) {
+  const cleaned = topic.replace(/[<>:"/\\|?*]/g, "").trim();
+  return cleaned.length > 0 ? cleaned : "未命名主题";
+}
+
+function createUniqueOutputPath(options) {
+  if (options.output) {
+    return options.output;
+  }
+  const now = new Date();
+  const traceDir = options["trace-dir"] || "trace";
+  const datePrefix = formatDatePrefix(now);
+  const topic = sanitizeTopicForFileName(options.name || "");
+  const baseName = `${datePrefix}-${topic}`;
+
+  let candidate = path.resolve(traceDir, `${baseName}.json`);
+  if (!fs.existsSync(candidate)) {
+    return candidate;
+  }
+
+  let suffix = 2;
+  while (true) {
+    candidate = path.resolve(traceDir, `${baseName}-${suffix}.json`);
+    if (!fs.existsSync(candidate)) {
+      return candidate;
+    }
+    suffix += 1;
+  }
+}
+
 function createDocument(options) {
-  if (!options.output || !options.name) {
-    fail("Usage: node trace-tools.js new --output <file> --name <trace name> [--description <text>]");
+  if (!options.name) {
+    fail(
+      "Usage: node trace-tools.js new --name <trace name> [--output <file>] [--trace-dir <dir>] [--description <text>]"
+    );
   }
   const now = new Date().toISOString();
   const document = {
@@ -154,7 +193,8 @@ function createDocument(options) {
     nodes: [],
     links: [],
   };
-  const targetPath = writeJson(options.output, document);
+  const outputPath = createUniqueOutputPath(options);
+  const targetPath = writeJson(outputPath, document);
   console.log(`Created ${targetPath}`);
 }
 
