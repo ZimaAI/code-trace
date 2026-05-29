@@ -22,6 +22,7 @@ public final class CodeTracePanel {
     private final TraceEditorPanel editorPanel = new TraceEditorPanel();
     private boolean syncingTraceNote;
     private boolean syncingNodeNote;
+    private boolean syncingNodeSelection;
     private String persistedTraceNote = "";
     private String persistedNodeNote = "";
     private String selectedNodeId;
@@ -100,7 +101,7 @@ public final class CodeTracePanel {
         });
 
         editorPanel.nodeList().addListSelectionListener(event -> {
-            if (event.getValueIsAdjusting()) {
+            if (event.getValueIsAdjusting() || syncingNodeSelection) {
                 return;
             }
             TraceNode selected = editorPanel.nodeList().getSelectedValue();
@@ -302,14 +303,15 @@ public final class CodeTracePanel {
                 input.navigationHint());
         controller.updateNode(updated);
         rebuildView();
-        selectNode(existing.id());
     }
 
     private void deleteSelectedNode() {
         if (selectedNodeId == null) {
             return;
         }
-        controller.deleteNodeOrPair(selectedNodeId);
+        String deletingNodeId = selectedNodeId;
+        selectedNodeId = null;
+        controller.deleteNodeOrPair(deletingNodeId);
         rebuildView();
     }
 
@@ -319,17 +321,6 @@ public final class CodeTracePanel {
         }
         controller.moveNodeOrPair(selectedNodeId, offset);
         rebuildView();
-        selectNode(selectedNodeId);
-    }
-
-    private void selectNode(String nodeId) {
-        var model = editorPanel.nodeList().getModel();
-        for (int i = 0; i < model.getSize(); i++) {
-            if (model.getElementAt(i).id().equals(nodeId)) {
-                editorPanel.nodeList().setSelectedIndex(i);
-                return;
-            }
-        }
     }
 
     private NodeInput showNodeDialog(String title, TraceNode initial) {
@@ -394,8 +385,11 @@ public final class CodeTracePanel {
             editorPanel.traceNote().setText("");
             syncingTraceNote = false;
             persistedTraceNote = "";
+            syncingNodeSelection = true;
             editorPanel.nodeList().setListData(new TraceNode[0]);
+            syncingNodeSelection = false;
             selectedNodeId = null;
+            controller.consumePreferredSelectedNodeId();
             syncingNodeNote = true;
             editorPanel.nodeNote().setText("");
             syncingNodeNote = false;
@@ -414,8 +408,10 @@ public final class CodeTracePanel {
         editorPanel.traceNote().setText(persistedTraceNote);
         syncingTraceNote = false;
 
+        syncingNodeSelection = true;
         editorPanel.nodeList().setListData(document.nodes().toArray(TraceNode[]::new));
         restoreSelection(document.nodes());
+        syncingNodeSelection = false;
         editorPanel.linkStatus().setText("Link source: "
                 + (controller.state().pendingLinkSourceId() == null ? "none" : controller.state().pendingLinkSourceId()));
 
@@ -469,20 +465,14 @@ public final class CodeTracePanel {
     }
 
     private void restoreSelection(List<TraceNode> nodes) {
-        if (nodes.isEmpty()) {
-            selectedNodeId = null;
-            return;
+        String preferredSelectedNodeId = controller.consumePreferredSelectedNodeId();
+        selectedNodeId = NodeSelectionPolicy.resolveSelectedNodeId(nodes, selectedNodeId, preferredSelectedNodeId);
+        int selectedIndex = NodeSelectionPolicy.indexOfNode(nodes, selectedNodeId);
+        if (selectedIndex >= 0) {
+            editorPanel.nodeList().setSelectedIndex(selectedIndex);
+        } else {
+            editorPanel.nodeList().clearSelection();
         }
-        if (selectedNodeId != null) {
-            for (int i = 0; i < nodes.size(); i++) {
-                if (nodes.get(i).id().equals(selectedNodeId)) {
-                    editorPanel.nodeList().setSelectedIndex(i);
-                    return;
-                }
-            }
-        }
-        selectedNodeId = nodes.get(0).id();
-        editorPanel.nodeList().setSelectedIndex(0);
     }
 
     private record NodeInput(

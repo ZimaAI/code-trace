@@ -89,6 +89,76 @@ class AddToCodeTraceHandlerTest {
         assertEquals("Source file is outside project root", prompts.captureErrorMessage);
     }
 
+    @Test
+    void prefersSourceNodeAfterAddingSourceAndDetectedTarget() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.createNewFile("trace-2.json", "Trace 2");
+
+        TraceNode source = new TraceNode(
+                "ignored-source-id",
+                "return authService.login(user);",
+                "AuthController#login",
+                "login(User user)",
+                "src/AuthController.java",
+                21,
+                "JAVA",
+                "",
+                "AuthController#login(User)");
+        TraceNode target = new TraceNode(
+                "ignored-target-id",
+                "public User login(User user) {",
+                "AuthService#login",
+                "login(User user)",
+                "src/AuthService.java",
+                14,
+                "JAVA",
+                "",
+                "AuthService#login(User)");
+
+        AddToCodeTraceHandler handler = new AddToCodeTraceHandler(
+                controller,
+                new FakeCaptureService(source, Optional.of(target)),
+                new RecordingPrompts(true),
+                () -> {
+                });
+
+        handler.handle(null, null, null);
+
+        String sourceId = controller.state().currentDocument().nodes().get(0).id();
+        assertEquals(sourceId, controller.state().preferredSelectedNodeId());
+    }
+
+    @Test
+    void prefersReusedSourceNodeWhenSameSourceAlreadyExists() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.createNewFile("trace-3.json", "Trace 3");
+
+        TraceNode existing = new TraceNode(
+                "node-existing",
+                "return authService.login(user);",
+                "AuthController#login",
+                "login(User user)",
+                "src/AuthController.java",
+                21,
+                "JAVA",
+                "",
+                "AuthController#login(User)");
+        controller.addNode(existing);
+
+        AddToCodeTraceHandler handler = new AddToCodeTraceHandler(
+                controller,
+                new FakeCaptureService(existing, Optional.empty()),
+                new RecordingPrompts(true),
+                () -> {
+                });
+
+        handler.handle(null, null, null);
+
+        assertEquals("node-existing", controller.state().preferredSelectedNodeId());
+    }
+
     private static final class FakeCaptureService implements TraceNodeCaptureService {
         private final TraceNode source;
         private final Optional<TraceNode> target;

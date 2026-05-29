@@ -38,11 +38,12 @@ public final class AddToCodeTraceHandler {
             return;
         }
         int sourceIndex = controller.addOrReuseNode(source);
+        String sourceId = controller.state().currentDocument().nodes().get(sourceIndex).id();
+        controller.preferSelectedNode(sourceId);
         Optional<TraceNode> detectedTarget = captureService.detectTarget(project, editor, psiFile);
         if (detectedTarget.isPresent()
                 && prompts.confirmDetectedLink(project, source.displayName(), detectedTarget.get().displayName())) {
             int targetIndex = controller.addOrReuseNode(detectedTarget.get());
-            String sourceId = controller.state().currentDocument().nodes().get(sourceIndex).id();
             String targetId = controller.state().currentDocument().nodes().get(targetIndex).id();
             try {
                 controller.setPendingLinkSource(sourceId);
