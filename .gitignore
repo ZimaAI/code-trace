@@ -43,3 +43,6 @@ bin/
 
 .intellijPlatform/
 sandbox/
+
+### test ###
+code-trace/
