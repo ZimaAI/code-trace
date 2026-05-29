@@ -31,7 +31,10 @@ public final class TraceEditorPanel {
     private final JButton setAsSourceButton = new JButton("Set as Source");
     private final JButton linkToHereButton = new JButton("Link To Here");
     private final JButton unlinkButton = new JButton("Unlink");
+    private final JButton goToSourceButton = new JButton("Go to Source");
+    private final JButton goToTargetButton = new JButton("Go to Target");
     private final JLabel linkStatus = new JLabel("Link source: none");
+    private final JPanel nodeToolbar = new JPanel(new WrapLayout(WrapLayout.LEFT, 5, 5));
     private final JPanel root = new JPanel(new BorderLayout());
 
     public TraceEditorPanel() {
@@ -42,7 +45,9 @@ public final class TraceEditorPanel {
         traceNotePanel.add(new JBScrollPane(traceNote), BorderLayout.CENTER);
         traceNotePanel.add(saveTraceNoteButton, BorderLayout.SOUTH);
 
-        JPanel nodeToolbar = new JPanel();
+        goToSourceButton.setEnabled(false);
+        goToTargetButton.setEnabled(false);
+
         nodeToolbar.add(editNodeButton);
         nodeToolbar.add(deleteNodeButton);
         nodeToolbar.add(moveUpButton);
@@ -50,6 +55,8 @@ public final class TraceEditorPanel {
         nodeToolbar.add(setAsSourceButton);
         nodeToolbar.add(linkToHereButton);
         nodeToolbar.add(unlinkButton);
+        nodeToolbar.add(goToSourceButton);
+        nodeToolbar.add(goToTargetButton);
 
         JPanel nodeNotePanel = new JPanel(new BorderLayout());
         nodeNotePanel.add(new JBScrollPane(nodeNote), BorderLayout.CENTER);
@@ -144,5 +151,17 @@ public final class TraceEditorPanel {
 
     public JLabel linkStatus() {
         return linkStatus;
+    }
+
+    JPanel nodeToolbar() {
+        return nodeToolbar;
+    }
+
+    JButton goToSourceButton() {
+        return goToSourceButton;
+    }
+
+    JButton goToTargetButton() {
+        return goToTargetButton;
     }
 }

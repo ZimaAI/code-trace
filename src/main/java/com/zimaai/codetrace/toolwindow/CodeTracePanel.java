@@ -15,6 +15,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 public final class CodeTracePanel {
+    private static final List<String> TOP_TOOLBAR_BUTTON_LABELS = List.of("Refresh");
     private final CodeTraceController controller;
     private final JPanel root = new JPanel(new BorderLayout());
     private final Map<String, JButton> buttons = new HashMap<>();
@@ -67,12 +68,9 @@ public final class CodeTracePanel {
 
     private void configureLayout() {
         JPanel toolbar = new JPanel();
-        addButton(toolbar, "Refresh", this::refreshAndRepaint);
-        addButton(toolbar, "Save Trace Note", this::saveTraceNote);
-        addButton(toolbar, "Save Node Note", this::saveNodeNote);
-        addButton(toolbar, "Set as Source", this::setSelectedAsSource);
-        addButton(toolbar, "Link To Here", this::linkToSelectedNode);
-        addButton(toolbar, "Unlink", this::unlinkSelectedNode);
+        for (String label : TOP_TOOLBAR_BUTTON_LABELS) {
+            addButton(toolbar, label, topToolbarAction(label));
+        }
 
         JBSplitter split = new JBSplitter(false, 0.25f);
         // Allow users to freely resize file list vs editor list panes.
@@ -85,6 +83,13 @@ public final class CodeTracePanel {
 
         root.add(toolbar, BorderLayout.NORTH);
         root.add(split, BorderLayout.CENTER);
+    }
+
+    private Runnable topToolbarAction(String label) {
+        return switch (label) {
+            case "Refresh" -> this::refreshAndRepaint;
+            default -> throw new IllegalArgumentException("Unknown top toolbar button: " + label);
+        };
     }
 
     private void wireSelection() {
@@ -473,6 +478,14 @@ public final class CodeTracePanel {
         } else {
             editorPanel.nodeList().clearSelection();
         }
+    }
+
+    TraceEditorPanel editorPanel() {
+        return editorPanel;
+    }
+
+    static List<String> topToolbarButtonLabels() {
+        return TOP_TOOLBAR_BUTTON_LABELS;
     }
 
     private record NodeInput(
