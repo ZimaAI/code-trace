@@ -35,8 +35,7 @@ public final class TraceEditorPanel {
     private final JButton setAsSourceButton = new JButton("Set as Source", AllIcons.Actions.PinTab);
     private final JButton linkToHereButton = new JButton("Link To Here", AllIcons.General.LinkDropTriangle);
     private final JButton unlinkButton = new JButton("Unlink", AllIcons.Actions.DeleteTag);
-    private final JButton goToSourceButton = new JButton("Go to Source", AllIcons.Actions.Back);
-    private final JButton goToTargetButton = new JButton("Go to Target", AllIcons.Actions.Forward);
+    private final JButton goToLinkedButton = new JButton("Go To Linked", AllIcons.Actions.Find);
     private final JLabel linkStatus = new JLabel("Link source: none");
     private final JPanel nodeToolbar = new JPanel(new WrapLayout(WrapLayout.LEFT, 4, 4));
     private final JPanel root = new JPanel(new BorderLayout());
@@ -50,8 +49,7 @@ public final class TraceEditorPanel {
         traceNotePanel.add(new JBScrollPane(traceNote), BorderLayout.CENTER);
         traceNotePanel.add(saveTraceNoteButton, BorderLayout.SOUTH);
 
-        goToSourceButton.setEnabled(false);
-        goToTargetButton.setEnabled(false);
+        goToLinkedButton.setEnabled(false);
 
         configureNodeToolbar();
 
@@ -94,8 +92,7 @@ public final class TraceEditorPanel {
         nodeToolbar.add(unlinkButton);
         nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
         // Row 1 continued: Navigation
-        nodeToolbar.add(goToSourceButton);
-        nodeToolbar.add(goToTargetButton);
+        nodeToolbar.add(goToLinkedButton);
     }
 
     private void addTooltips() {
@@ -106,8 +103,7 @@ public final class TraceEditorPanel {
         setAsSourceButton.setToolTipText("Mark the selected node as the link source for a future link");
         linkToHereButton.setToolTipText("Create a trace link from the pending source node to the selected node");
         unlinkButton.setToolTipText("Remove the trace link associated with the selected node");
-        goToSourceButton.setToolTipText("Navigate to the linked source node of the current selection");
-        goToTargetButton.setToolTipText("Navigate to the linked target node of the current selection");
+        goToLinkedButton.setToolTipText("Navigate to linked nodes. Click to jump if only one link exists, or show a menu for multiple links.");
         saveTraceNoteButton.setToolTipText("Save the trace-level description");
         saveNodeNoteButton.setToolTipText("Save the note for the selected node");
     }
@@ -192,11 +188,7 @@ public final class TraceEditorPanel {
         return nodeToolbar;
     }
 
-    JButton goToSourceButton() {
-        return goToSourceButton;
-    }
-
-    JButton goToTargetButton() {
-        return goToTargetButton;
+    JButton goToLinkedButton() {
+        return goToLinkedButton;
     }
 }
