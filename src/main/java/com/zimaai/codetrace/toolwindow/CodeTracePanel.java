@@ -7,13 +7,18 @@ import com.zimaai.codetrace.model.TraceLink;
 import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
 import java.awt.BorderLayout;
+import java.awt.Font;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JSeparator;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
@@ -175,8 +180,7 @@ public final class CodeTracePanel {
         editorPanel.setAsSourceButton().addActionListener(event -> setSelectedAsSource());
         editorPanel.linkToHereButton().addActionListener(event -> linkToSelectedNode());
         editorPanel.unlinkButton().addActionListener(event -> unlinkSelectedNode());
-        editorPanel.goToSourceButton().addActionListener(event -> goToLinkedSource());
-        editorPanel.goToTargetButton().addActionListener(event -> goToLinkedTarget());
+        editorPanel.goToLinkedButton().addActionListener(event -> goToLinked());
     }
 
     private void addButton(JPanel toolbar, String label, Runnable action) {
@@ -335,18 +339,63 @@ public final class CodeTracePanel {
         rebuildView();
     }
 
-    private void goToLinkedSource() {
-        TraceNode sourceNode = findLinkedSourceNode();
-        if (sourceNode != null) {
-            controller.navigateToNode(sourceNode);
+    private void goToLinked() {
+        LinkedNodes linked = findAllLinkedNodes();
+        List<TraceNode> allLinked = new ArrayList<>();
+        allLinked.addAll(linked.sources());
+        allLinked.addAll(linked.targets());
+
+        if (allLinked.isEmpty()) {
+            return;
         }
+
+        if (allLinked.size() == 1) {
+            controller.navigateToNode(allLinked.get(0));
+            return;
+        }
+
+        showLinkedNodesMenu(linked);
     }
 
-    private void goToLinkedTarget() {
-        TraceNode targetNode = findLinkedTargetNode();
-        if (targetNode != null) {
-            controller.navigateToNode(targetNode);
+    private void showLinkedNodesMenu(LinkedNodes linked) {
+        JPopupMenu menu = new JPopupMenu();
+
+        if (!linked.sources().isEmpty()) {
+            JMenuItem sourceLabel = new JMenuItem("Sources (→)");
+            sourceLabel.setEnabled(false);
+            Font defaultFont = sourceLabel.getFont();
+            sourceLabel.setFont(defaultFont.deriveFont(Font.BOLD));
+            menu.add(sourceLabel);
+
+            for (TraceNode node : linked.sources()) {
+                JMenuItem item = new JMenuItem(node.displayName());
+                item.setToolTipText(node.filePath() + ":" + node.line());
+                item.addActionListener(e -> controller.navigateToNode(node));
+                menu.add(item);
+            }
         }
+
+        if (!linked.sources().isEmpty() && !linked.targets().isEmpty()) {
+            menu.add(new JSeparator());
+        }
+
+        if (!linked.targets().isEmpty()) {
+            JMenuItem targetLabel = new JMenuItem("Targets (←)");
+            targetLabel.setEnabled(false);
+            Font defaultFont = targetLabel.getFont();
+            targetLabel.setFont(defaultFont.deriveFont(Font.BOLD));
+            menu.add(targetLabel);
+
+            for (TraceNode node : linked.targets()) {
+                JMenuItem item = new JMenuItem(node.displayName());
+                item.setToolTipText(node.filePath() + ":" + node.line());
+                item.addActionListener(e -> controller.navigateToNode(node));
+                menu.add(item);
+            }
+        }
+
+        JButton button = editorPanel.goToLinkedButton();
+        menu.show(button, 0, button.getHeight());
     }
 
     private NodeInput showNodeDialog(String title, TraceNode initial) {
@@ -458,9 +507,6 @@ public final class CodeTracePanel {
         boolean hasDocument = document != null;
         boolean hasSelection = findSelectedNode() != null;
         boolean hasPendingSource = controller.state().pendingLinkSourceId() != null;
-        TraceNode linkedSourceNode = findLinkedSourceNode();
-        TraceNode linkedTargetNode = findLinkedTargetNode();
-
         if (hasDocument && !syncingTraceNote) {
             editorPanel.saveTraceNoteButton().setEnabled(!persistedTraceNote.equals(editorPanel.traceNote().getText()));
         } else {
@@ -480,8 +526,7 @@ public final class CodeTracePanel {
         editorPanel.setAsSourceButton().setEnabled(hasSelection);
         editorPanel.linkToHereButton().setEnabled(hasSelection && hasPendingSource);
         editorPanel.unlinkButton().setEnabled(hasSelection);
-        editorPanel.goToSourceButton().setEnabled(linkedSourceNode != null);
-        editorPanel.goToTargetButton().setEnabled(linkedTargetNode != null);
+        editorPanel.goToLinkedButton().setEnabled(hasLinkedNodes());
     }
 
     private TraceNode findSelectedNode() {
@@ -494,24 +539,43 @@ public final class CodeTracePanel {
                 .orElse(null);
     }
 
-    private TraceLink findSelectedLink() {
+    private List<TraceLink> findAllLinksForSelectedNode() {
         if (selectedNodeId == null || controller.state().currentDocument() == null) {
-            return null;
+            return List.of();
         }
         return controller.state().currentDocument().links().stream()
                 .filter(link -> selectedNodeId.equals(link.sourceNodeId()) || selectedNodeId.equals(link.targetNodeId()))
-                .findFirst()
-                .orElse(null);
+                .toList();
     }
 
-    private TraceNode findLinkedSourceNode() {
-        TraceLink link = findSelectedLink();
-        return link == null ? null : findNodeById(link.sourceNodeId());
+    private LinkedNodes findAllLinkedNodes() {
+        List<TraceLink> links = findAllLinksForSelectedNode();
+        List<TraceNode> sources = new ArrayList<>();
+        List<TraceNode> targets = new ArrayList<>();
+        for (TraceLink link : links) {
+            if (selectedNodeId.equals(link.targetNodeId())) {
+                TraceNode sourceNode = findNodeById(link.sourceNodeId());
+                if (sourceNode != null) {
+                    sources.add(sourceNode);
+                }
+            }
+            if (selectedNodeId.equals(link.sourceNodeId())) {
+                TraceNode targetNode = findNodeById(link.targetNodeId());
+                if (targetNode != null) {
+                    targets.add(targetNode);
+                }
+            }
+        }
+        return new LinkedNodes(List.copyOf(sources), List.copyOf(targets));
     }
 
-    private TraceNode findLinkedTargetNode() {
-        TraceLink link = findSelectedLink();
-        return link == null ? null : findNodeById(link.targetNodeId());
+    private boolean hasLinkedNodes() {
+        if (selectedNodeId == null || controller.state().currentDocument() == null) {
+            return false;
+        }
+        return controller.state().currentDocument().links().stream()
+                .anyMatch(link -> selectedNodeId.equals(link.sourceNodeId())
+                        || selectedNodeId.equals(link.targetNodeId()));
     }
 
     private TraceNode findNodeById(String nodeId) {
@@ -552,5 +616,10 @@ public final class CodeTracePanel {
             String language,
             String note,
             String navigationHint) {
+    }
+
+    private record LinkedNodes(
+            List<TraceNode> sources,
+            List<TraceNode> targets) {
     }
 }
