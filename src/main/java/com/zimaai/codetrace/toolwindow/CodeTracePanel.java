@@ -341,16 +341,17 @@ public final class CodeTracePanel {
 
     private void goToLinked() {
         LinkedNodes linked = findAllLinkedNodes();
-        List<TraceNode> allLinked = new ArrayList<>();
-        allLinked.addAll(linked.sources());
-        allLinked.addAll(linked.targets());
+        int total = linked.sources().size() + linked.targets().size();
 
-        if (allLinked.isEmpty()) {
+        if (total == 0) {
             return;
         }
 
-        if (allLinked.size() == 1) {
-            controller.navigateToNode(allLinked.get(0));
+        if (total == 1) {
+            TraceNode single = !linked.sources().isEmpty()
+                    ? linked.sources().get(0)
+                    : linked.targets().get(0);
+            controller.navigateToNode(single);
             return;
         }
 
@@ -363,9 +364,11 @@ public final class CodeTracePanel {
         if (!linked.sources().isEmpty()) {
             JMenuItem sourceLabel = new JMenuItem("Sources (→)");
             sourceLabel.setEnabled(false);
-            Font defaultFont = sourceLabel.getFont();
-            sourceLabel.setFont(defaultFont.deriveFont(Font.BOLD));
             menu.add(sourceLabel);
+            Font defaultFont = sourceLabel.getFont();
+            if (defaultFont != null) {
+                sourceLabel.setFont(defaultFont.deriveFont(Font.BOLD));
+            }
 
             for (TraceNode node : linked.sources()) {
                 JMenuItem item = new JMenuItem(node.displayName());
@@ -382,9 +385,11 @@ public final class CodeTracePanel {
         if (!linked.targets().isEmpty()) {
             JMenuItem targetLabel = new JMenuItem("Targets (←)");
             targetLabel.setEnabled(false);
-            Font defaultFont = targetLabel.getFont();
-            targetLabel.setFont(defaultFont.deriveFont(Font.BOLD));
             menu.add(targetLabel);
+            Font defaultFont = targetLabel.getFont();
+            if (defaultFont != null) {
+                targetLabel.setFont(defaultFont.deriveFont(Font.BOLD));
+            }
 
             for (TraceNode node : linked.targets()) {
                 JMenuItem item = new JMenuItem(node.displayName());
