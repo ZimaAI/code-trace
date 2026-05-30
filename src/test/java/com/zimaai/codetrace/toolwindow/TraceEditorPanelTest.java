@@ -29,18 +29,15 @@ class TraceEditorPanelTest {
     }
 
     @Test
-    void usesWrapLayoutForNodeToolbarAndDisablesJumpButtonsByDefault() {
+    void usesWrapLayoutForNodeToolbarAndDisablesJumpButtonByDefault() {
         TraceEditorPanel panel = new TraceEditorPanel();
 
         LayoutManager layout = panel.nodeToolbar().getLayout();
         assertEquals(WrapLayout.class, layout.getClass());
 
-        JButton goToSource = panel.goToSourceButton();
-        JButton goToTarget = panel.goToTargetButton();
-        assertEquals("Go to Source", goToSource.getText());
-        assertEquals("Go to Target", goToTarget.getText());
-        assertFalse(goToSource.isEnabled());
-        assertFalse(goToTarget.isEnabled());
+        JButton goToLinked = panel.goToLinkedButton();
+        assertEquals("Go To Linked", goToLinked.getText());
+        assertFalse(goToLinked.isEnabled());
     }
 
     @Test
@@ -54,8 +51,7 @@ class TraceEditorPanelTest {
         assertNotNull(panel.setAsSourceButton().getIcon(), "Set as Source button should have an icon");
         assertNotNull(panel.linkToHereButton().getIcon(), "Link To Here button should have an icon");
         assertNotNull(panel.unlinkButton().getIcon(), "Unlink button should have an icon");
-        assertNotNull(panel.goToSourceButton().getIcon(), "Go to Source button should have an icon");
-        assertNotNull(panel.goToTargetButton().getIcon(), "Go to Target button should have an icon");
+        assertNotNull(panel.goToLinkedButton().getIcon(), "Go To Linked button should have an icon");
         assertNotNull(panel.saveTraceNoteButton().getIcon(), "Save Trace Note button should have an icon");
         assertNotNull(panel.saveNodeNoteButton().getIcon(), "Save Node Note button should have an icon");
     }
@@ -71,8 +67,7 @@ class TraceEditorPanelTest {
         assertNotNull(panel.setAsSourceButton().getToolTipText(), "Set as Source button should have a tooltip");
         assertNotNull(panel.linkToHereButton().getToolTipText(), "Link To Here button should have a tooltip");
         assertNotNull(panel.unlinkButton().getToolTipText(), "Unlink button should have a tooltip");
-        assertNotNull(panel.goToSourceButton().getToolTipText(), "Go to Source button should have a tooltip");
-        assertNotNull(panel.goToTargetButton().getToolTipText(), "Go to Target button should have a tooltip");
+        assertNotNull(panel.goToLinkedButton().getToolTipText(), "Go To Linked button should have a tooltip");
         assertNotNull(panel.saveTraceNoteButton().getToolTipText(), "Save Trace Note button should have a tooltip");
         assertNotNull(panel.saveNodeNoteButton().getToolTipText(), "Save Node Note button should have a tooltip");
     }
