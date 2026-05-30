@@ -1,5 +1,6 @@
 package com.zimaai.codetrace.toolwindow;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.editor.colors.EditorColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.application.ApplicationManager;
@@ -8,6 +9,7 @@ import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
+import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import com.zimaai.codetrace.model.TraceNode;
 import java.awt.Color;
@@ -16,25 +18,27 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
+import javax.swing.SwingConstants;
 
 public final class TraceEditorPanel {
     private final JBTextArea traceNote = new JBTextArea();
-    private final JButton saveTraceNoteButton = new JButton("Save Trace Note");
+    private final JButton saveTraceNoteButton = new JButton("Save Trace Note", AllIcons.Actions.MenuSaveall);
     private final JBList<TraceNode> nodeList = new JBList<>();
     private final JBTextArea nodeNote = new JBTextArea();
-    private final JButton saveNodeNoteButton = new JButton("Save Node Note");
-    private final JButton editNodeButton = new JButton("Edit Node");
-    private final JButton deleteNodeButton = new JButton("Delete Node");
-    private final JButton moveUpButton = new JButton("Move Up");
-    private final JButton moveDownButton = new JButton("Move Down");
-    private final JButton setAsSourceButton = new JButton("Set as Source");
-    private final JButton linkToHereButton = new JButton("Link To Here");
-    private final JButton unlinkButton = new JButton("Unlink");
-    private final JButton goToSourceButton = new JButton("Go to Source");
-    private final JButton goToTargetButton = new JButton("Go to Target");
+    private final JButton saveNodeNoteButton = new JButton("Save Node Note", AllIcons.Actions.MenuSaveall);
+    private final JButton editNodeButton = new JButton("Edit Node", AllIcons.Actions.Edit);
+    private final JButton deleteNodeButton = new JButton("Delete Node", AllIcons.General.Remove);
+    private final JButton moveUpButton = new JButton("Move Up", AllIcons.General.ArrowUp);
+    private final JButton moveDownButton = new JButton("Move Down", AllIcons.General.ArrowDown);
+    private final JButton setAsSourceButton = new JButton("Set as Source", AllIcons.Actions.PinTab);
+    private final JButton linkToHereButton = new JButton("Link To Here", AllIcons.General.LinkDropTriangle);
+    private final JButton unlinkButton = new JButton("Unlink", AllIcons.Actions.DeleteTag);
+    private final JButton goToSourceButton = new JButton("Go to Source", AllIcons.Actions.Back);
+    private final JButton goToTargetButton = new JButton("Go to Target", AllIcons.Actions.Forward);
     private final JLabel linkStatus = new JLabel("Link source: none");
-    private final JPanel nodeToolbar = new JPanel(new WrapLayout(WrapLayout.LEFT, 5, 5));
+    private final JPanel nodeToolbar = new JPanel(new WrapLayout(WrapLayout.LEFT, 4, 4));
     private final JPanel root = new JPanel(new BorderLayout());
 
     public TraceEditorPanel() {
@@ -42,21 +46,14 @@ public final class TraceEditorPanel {
         configureTextArea(nodeNote);
 
         JPanel traceNotePanel = new JPanel(new BorderLayout());
+        traceNotePanel.setBorder(JBUI.Borders.empty(0, 0, 6, 0));
         traceNotePanel.add(new JBScrollPane(traceNote), BorderLayout.CENTER);
         traceNotePanel.add(saveTraceNoteButton, BorderLayout.SOUTH);
 
         goToSourceButton.setEnabled(false);
         goToTargetButton.setEnabled(false);
 
-        nodeToolbar.add(editNodeButton);
-        nodeToolbar.add(deleteNodeButton);
-        nodeToolbar.add(moveUpButton);
-        nodeToolbar.add(moveDownButton);
-        nodeToolbar.add(setAsSourceButton);
-        nodeToolbar.add(linkToHereButton);
-        nodeToolbar.add(unlinkButton);
-        nodeToolbar.add(goToSourceButton);
-        nodeToolbar.add(goToTargetButton);
+        configureNodeToolbar();
 
         JPanel nodeNotePanel = new JPanel(new BorderLayout());
         nodeNotePanel.add(new JBScrollPane(nodeNote), BorderLayout.CENTER);
@@ -68,13 +65,51 @@ public final class TraceEditorPanel {
                 nodeNotePanel);
         split.setResizeWeight(0.7d);
 
+        linkStatus.setBorder(JBUI.Borders.empty(3, 6, 2, 6));
+
         JPanel content = new JPanel(new BorderLayout());
+        content.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
         content.add(nodeToolbar, BorderLayout.NORTH);
         content.add(split, BorderLayout.CENTER);
         content.add(linkStatus, BorderLayout.SOUTH);
 
         root.add(traceNotePanel, BorderLayout.NORTH);
         root.add(content, BorderLayout.CENTER);
+
+        addTooltips();
+    }
+
+    private void configureNodeToolbar() {
+        // Row 1: Node editing actions
+        nodeToolbar.add(editNodeButton);
+        nodeToolbar.add(deleteNodeButton);
+        nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
+        // Row 1 continued: Ordering
+        nodeToolbar.add(moveUpButton);
+        nodeToolbar.add(moveDownButton);
+        nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
+        // Row 1 continued: Link source selection
+        nodeToolbar.add(setAsSourceButton);
+        nodeToolbar.add(linkToHereButton);
+        nodeToolbar.add(unlinkButton);
+        nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
+        // Row 1 continued: Navigation
+        nodeToolbar.add(goToSourceButton);
+        nodeToolbar.add(goToTargetButton);
+    }
+
+    private void addTooltips() {
+        editNodeButton.setToolTipText("Edit the selected node's properties");
+        deleteNodeButton.setToolTipText("Remove the selected node (and its link pair, if linked)");
+        moveUpButton.setToolTipText("Move the selected node up in the list");
+        moveDownButton.setToolTipText("Move the selected node down in the list");
+        setAsSourceButton.setToolTipText("Mark the selected node as the link source for a future link");
+        linkToHereButton.setToolTipText("Create a trace link from the pending source node to the selected node");
+        unlinkButton.setToolTipText("Remove the trace link associated with the selected node");
+        goToSourceButton.setToolTipText("Navigate to the linked source node of the current selection");
+        goToTargetButton.setToolTipText("Navigate to the linked target node of the current selection");
+        saveTraceNoteButton.setToolTipText("Save the trace-level description");
+        saveNodeNoteButton.setToolTipText("Save the note for the selected node");
     }
 
     private static void configureTextArea(JBTextArea area) {

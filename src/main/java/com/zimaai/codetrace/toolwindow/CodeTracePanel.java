@@ -1,6 +1,8 @@
 package com.zimaai.codetrace.toolwindow;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.ui.JBSplitter;
+import com.intellij.util.ui.JBUI;
 import com.zimaai.codetrace.model.TraceLink;
 import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
@@ -69,6 +71,7 @@ public final class CodeTracePanel {
 
     private void configureLayout() {
         JPanel toolbar = new JPanel();
+        toolbar.setBorder(JBUI.Borders.empty(4, 4, 4, 4));
         for (String label : TOP_TOOLBAR_BUTTON_LABELS) {
             addButton(toolbar, label, topToolbarAction(label));
         }
@@ -177,8 +180,9 @@ public final class CodeTracePanel {
     }
 
     private void addButton(JPanel toolbar, String label, Runnable action) {
-        JButton button = new JButton(label);
+        JButton button = new JButton(label, AllIcons.Actions.Refresh);
         button.addActionListener(event -> action.run());
+        button.setToolTipText("Reload trace data from disk");
         buttons.put(label, button);
         toolbar.add(button);
     }

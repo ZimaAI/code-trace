@@ -35,11 +35,11 @@ class LinkedNodeListCellRendererTest {
         JList<TraceNode> list = new JList<>(new TraceNode[]{source, target});
 
         Component sourceComponent = renderer.getListCellRendererComponent(list, source, 0, false, false);
-        assertEquals("source line", ((JLabel) sourceComponent).getText());
+        assertEquals("▶ source line", ((JLabel) sourceComponent).getText());
         java.awt.Color sourceColor = sourceComponent.getBackground();
 
         Component targetComponent = renderer.getListCellRendererComponent(list, target, 1, false, false);
-        assertEquals("target line", ((JLabel) targetComponent).getText());
+        assertEquals("◀ target line", ((JLabel) targetComponent).getText());
         java.awt.Color targetColor = targetComponent.getBackground();
 
         assertNotNull(sourceColor);
