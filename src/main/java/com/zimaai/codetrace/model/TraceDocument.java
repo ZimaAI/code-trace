@@ -2,6 +2,7 @@ package com.zimaai.codetrace.model;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 public record TraceDocument(
         int schemaVersion,
@@ -11,5 +12,6 @@ public record TraceDocument(
         Instant createdAt,
         Instant updatedAt,
         List<TraceNode> nodes,
-        List<TraceLink> links) {
+        List<TraceLink> links,
+        Set<String> expandedNodeIds) {
 }

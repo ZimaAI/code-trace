@@ -228,7 +228,7 @@ class AddToCodeTraceHandlerTest {
 
     private static TraceDocument documentWithThreeNodes() {
         return new TraceDocument(
-                2,
+                3,
                 "trace-test",
                 "Trace Test",
                 "",
@@ -238,7 +238,8 @@ class AddToCodeTraceHandlerTest {
                         new TraceNode("node-1", "line 1", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a"),
                         new TraceNode("node-2", "line 2", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b"),
                         new TraceNode("node-3", "line 3", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c")),
-                List.of());
+                List.of(),
+                java.util.Set.of());
     }
 
     private static final class FakeCaptureService implements TraceNodeCaptureService {

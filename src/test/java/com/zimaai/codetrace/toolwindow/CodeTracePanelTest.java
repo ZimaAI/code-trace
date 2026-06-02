@@ -72,14 +72,15 @@ class CodeTracePanelTest {
 
     private static TraceDocument documentWithOneNode() {
         return new TraceDocument(
-                2,
+                3,
                 "trace-1",
                 "Trace 1",
                 "",
                 Instant.parse("2026-05-29T10:00:00Z"),
                 Instant.parse("2026-05-29T10:00:00Z"),
                 List.of(new TraceNode("node-1", "single line", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a")),
-                List.of());
+                List.of(),
+                java.util.Set.of());
     }
 
     @Test

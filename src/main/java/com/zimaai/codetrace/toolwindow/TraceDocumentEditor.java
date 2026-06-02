@@ -13,14 +13,15 @@ import java.util.UUID;
 public final class TraceDocumentEditor {
     public TraceDocument saveDescription(TraceDocument document, String description, Instant now) {
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 description,
                 document.createdAt(),
                 now,
                 document.nodes(),
-                document.links());
+                document.links(),
+                document.expandedNodeIds());
     }
 
     public TraceDocument saveNodeNote(TraceDocument document, String nodeId, String note, Instant now) {
@@ -42,28 +43,30 @@ public final class TraceDocumentEditor {
             }
         }
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 List.copyOf(updatedNodes),
-                document.links());
+                document.links(),
+                document.expandedNodeIds());
     }
 
     public TraceDocument addNode(TraceDocument document, TraceNode node, Instant now) {
         List<TraceNode> nodes = new ArrayList<>(document.nodes());
         nodes.add(node);
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 List.copyOf(nodes),
-                document.links());
+                document.links(),
+                document.expandedNodeIds());
     }
 
     public TraceDocument insertNodeAt(TraceDocument document, TraceNode node, int index, Instant now) {
@@ -71,14 +74,15 @@ public final class TraceDocumentEditor {
         int boundedIndex = Math.max(0, Math.min(index, nodes.size()));
         nodes.add(boundedIndex, node);
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 List.copyOf(nodes),
-                document.links());
+                document.links(),
+                document.expandedNodeIds());
     }
 
     public TraceDocument updateNode(TraceDocument document, TraceNode replacement, Instant now) {
@@ -90,14 +94,15 @@ public final class TraceDocumentEditor {
             }
         }
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 List.copyOf(nodes),
-                document.links());
+                document.links(),
+                document.expandedNodeIds());
     }
 
     public TraceDocument link(TraceDocument document, String sourceNodeId, String targetNodeId, TraceLinkKind kind, Instant now) {
@@ -117,14 +122,15 @@ public final class TraceDocumentEditor {
         List<TraceLink> links = new ArrayList<>(document.links());
         links.add(new TraceLink("link-" + UUID.randomUUID(), sourceNodeId, targetNodeId, now, kind));
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 document.nodes(),
-                List.copyOf(links));
+                List.copyOf(links),
+                document.expandedNodeIds());
     }
 
     public TraceDocument unlink(TraceDocument document, String nodeId, Instant now) {
@@ -132,13 +138,14 @@ public final class TraceDocumentEditor {
                 .filter(link -> !link.sourceNodeId().equals(nodeId) && !link.targetNodeId().equals(nodeId))
                 .toList();
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 document.nodes(),
-                links);
+                links,
+                document.expandedNodeIds());
     }
 }

@@ -30,11 +30,12 @@ class TraceStorageServiceTest {
                 "",
                 "AuthController#login(User)");
         TraceDocument document = new TraceDocument(
-                2, "trace-1", "Trace 1", "note",
+                3, "trace-1", "Trace 1", "note",
                 Instant.parse("2026-05-28T10:00:00Z"),
                 Instant.parse("2026-05-28T10:00:00Z"),
                 List.of(node),
-                List.of());
+                List.of(),
+                java.util.Set.of());
 
         storage.save("trace-1.json", document);
         assertTrue(Files.exists(tempDir.resolve("code-trace").resolve("trace-1.json")));

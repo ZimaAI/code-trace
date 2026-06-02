@@ -1,6 +1,7 @@
 package com.zimaai.codetrace.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zimaai.codetrace.model.TraceDocument;
@@ -49,7 +50,7 @@ class TraceJsonMapperTest {
 
         TraceDocument restored = new TraceJsonMapper().read(legacyJson);
 
-        assertEquals(2, restored.schemaVersion());
+        assertEquals(3, restored.schemaVersion());
         assertEquals("Auth Login", restored.name());
         assertEquals(1, restored.nodes().size());
         assertEquals("return authService.login(user);", restored.nodes().get(0).displayName());
@@ -79,7 +80,7 @@ class TraceJsonMapperTest {
                 "target note",
                 "AuthService#login(User)");
         TraceDocument document = new TraceDocument(
-                2,
+                3,
                 "trace-auth-login",
                 "Auth Login",
                 "trace note",
@@ -91,13 +92,14 @@ class TraceJsonMapperTest {
                         "node-1",
                         "node-2",
                         Instant.parse("2026-05-29T10:00:00Z"),
-                        TraceLinkKind.DETECTED)));
+                        TraceLinkKind.DETECTED)),
+                java.util.Set.of());
 
         TraceJsonMapper mapper = new TraceJsonMapper();
         String json = mapper.write(document);
         TraceDocument restored = mapper.read(json);
 
-        assertTrue(json.contains("\"schemaVersion\" : 2"));
+        assertTrue(json.contains("\"schemaVersion\" : 3"));
         assertEquals("Auth Login", restored.name());
         assertEquals(2, restored.nodes().size());
         assertEquals("source note", restored.nodes().get(0).note());
@@ -121,14 +123,15 @@ class TraceJsonMapperTest {
                 "note",
                 "AuthController#login(User)");
         TraceDocument document = new TraceDocument(
-                2,
+                3,
                 "trace-auth-login",
                 "Auth Login",
                 "trace note",
                 Instant.parse("2026-05-29T09:00:00Z"),
                 Instant.parse("2026-05-29T10:00:00Z"),
                 List.of(node),
-                List.of());
+                List.of(),
+                java.util.Set.of());
 
         TraceJsonMapper mapper = new TraceJsonMapper();
         String json = mapper.write(document);
@@ -136,5 +139,40 @@ class TraceJsonMapperTest {
 
         assertTrue(json.contains(absolutePath));
         assertEquals(absolutePath, restored.nodes().get(0).filePath());
+    }
+
+    @Test
+    void migratesSchemaV2ToV3WithNullParentsAndEmptyExpandState() throws Exception {
+        TraceJsonMapper mapper = new TraceJsonMapper();
+        String v2Json = """
+                {
+                  "schemaVersion": 2,
+                  "id": "trace-1",
+                  "name": "Test",
+                  "description": "desc",
+                  "createdAt": "2026-06-02T10:00:00Z",
+                  "updatedAt": "2026-06-02T10:00:00Z",
+                  "nodes": [
+                    {
+                      "id": "node-1",
+                      "displayName": "line 1",
+                      "qualifiedName": "A#a",
+                      "signature": "a()",
+                      "filePath": "A.java",
+                      "line": 10,
+                      "language": "JAVA",
+                      "note": "",
+                      "navigationHint": "A#a"
+                    }
+                  ],
+                  "links": []
+                }
+                """;
+        TraceDocument doc = mapper.read(v2Json);
+        assertEquals(3, doc.schemaVersion());
+        assertEquals(1, doc.nodes().size());
+        assertNull(doc.nodes().get(0).parentId());
+        assertNull(doc.nodes().get(0).title());
+        assertTrue(doc.expandedNodeIds().isEmpty());
     }
 }

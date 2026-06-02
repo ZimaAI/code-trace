@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -212,14 +213,15 @@ public final class CodeTraceController {
     private static TraceDocument createEmptyDocument(String name) {
         Instant now = Instant.now();
         return new TraceDocument(
-                2,
+                3,
                 "trace-" + UUID.randomUUID(),
                 name,
                 "",
                 now,
                 now,
                 List.of(),
-                List.of());
+                List.of(),
+                Set.of());
     }
 
     private static int indexOfNode(List<TraceNode> nodes, String nodeId) {
@@ -266,14 +268,15 @@ public final class CodeTraceController {
             }
         }
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 List.copyOf(nodes),
-                document.links());
+                document.links(),
+                document.expandedNodeIds());
     }
 
     private TraceDocument insertOrReuseNodeAfter(TraceDocument document, TraceNode candidate, String afterNodeId, Instant now) {
@@ -342,14 +345,15 @@ public final class CodeTraceController {
             nodes.add(adjustedTarget + i, removed.get(i));
         }
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 List.copyOf(nodes),
-                document.links());
+                document.links(),
+                document.expandedNodeIds());
     }
 
     private static String resolveInsertedNodeId(TraceDocument document, TraceNode candidate) {
@@ -372,14 +376,15 @@ public final class CodeTraceController {
                 .filter(link -> !affectedIds.contains(link.sourceNodeId()) && !affectedIds.contains(link.targetNodeId()))
                 .toList();
         return new TraceDocument(
-                2,
+                3,
                 document.id(),
                 document.name(),
                 document.description(),
                 document.createdAt(),
                 now,
                 nodes,
-                links);
+                links,
+                document.expandedNodeIds());
     }
 
     private static List<String> linkedNodeIds(List<TraceLink> links, String nodeId) {

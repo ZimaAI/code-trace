@@ -22,14 +22,15 @@ class LinkedNodeListCellRendererTest {
         TraceNode source = new TraceNode("node-1", "source line", "A#a", "a()", "A.java", 1, "JAVA", "", "A#a");
         TraceNode target = new TraceNode("node-2", "target line", "B#b", "b()", "B.java", 2, "JAVA", "", "B#b");
         TraceDocument document = new TraceDocument(
-                2,
+                3,
                 "trace-1",
                 "Trace 1",
                 "",
                 Instant.parse("2026-05-29T10:00:00Z"),
                 Instant.parse("2026-05-29T10:00:00Z"),
                 List.of(source, target),
-                List.of(new TraceLink("link-1", "node-1", "node-2", Instant.parse("2026-05-29T10:01:00Z"), TraceLinkKind.MANUAL)));
+                List.of(new TraceLink("link-1", "node-1", "node-2", Instant.parse("2026-05-29T10:01:00Z"), TraceLinkKind.MANUAL)),
+                java.util.Set.of());
 
         LinkedNodeListCellRenderer renderer = new LinkedNodeListCellRenderer(() -> document, () -> null);
         JList<TraceNode> list = new JList<>(new TraceNode[]{source, target});

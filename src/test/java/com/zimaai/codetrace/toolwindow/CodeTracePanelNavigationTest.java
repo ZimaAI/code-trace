@@ -130,7 +130,7 @@ class CodeTracePanelNavigationTest {
 
     private static TraceDocument documentWithLinkedAndUnlinkedNodes() {
         return new TraceDocument(
-                2,
+                3,
                 "trace-1",
                 "Trace 1",
                 "",
@@ -140,24 +140,26 @@ class CodeTracePanelNavigationTest {
                         new TraceNode("node-1", "source line", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a"),
                         new TraceNode("node-2", "target line", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b"),
                         new TraceNode("node-3", "standalone line", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c")),
-                List.of(new TraceLink("link-1", "node-1", "node-2", Instant.parse("2026-05-29T10:01:00Z"), TraceLinkKind.MANUAL)));
+                List.of(new TraceLink("link-1", "node-1", "node-2", Instant.parse("2026-05-29T10:01:00Z"), TraceLinkKind.MANUAL)),
+                java.util.Set.of());
     }
 
     private static TraceDocument documentWithMissingTarget() {
         return new TraceDocument(
-                2,
+                3,
                 "trace-2",
                 "Trace 2",
                 "",
                 Instant.parse("2026-05-29T10:00:00Z"),
                 Instant.parse("2026-05-29T10:00:00Z"),
                 List.of(new TraceNode("node-1", "source line", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a")),
-                List.of(new TraceLink("link-1", "node-1", "node-missing", Instant.parse("2026-05-29T10:01:00Z"), TraceLinkKind.MANUAL)));
+                List.of(new TraceLink("link-1", "node-1", "node-missing", Instant.parse("2026-05-29T10:01:00Z"), TraceLinkKind.MANUAL)),
+                java.util.Set.of());
     }
 
     private static TraceDocument documentWithMultipleLinks() {
         return new TraceDocument(
-                2,
+                3,
                 "trace-multi",
                 "Trace Multi",
                 "",
@@ -171,6 +173,7 @@ class CodeTracePanelNavigationTest {
                 List.of(
                         new TraceLink("link-1", "node-A", "node-B", Instant.parse("2026-05-29T10:01:00Z"), TraceLinkKind.MANUAL),
                         new TraceLink("link-2", "node-A", "node-C", Instant.parse("2026-05-29T10:02:00Z"), TraceLinkKind.MANUAL),
-                        new TraceLink("link-3", "node-D", "node-A", Instant.parse("2026-05-29T10:03:00Z"), TraceLinkKind.MANUAL)));
+                        new TraceLink("link-3", "node-D", "node-A", Instant.parse("2026-05-29T10:03:00Z"), TraceLinkKind.MANUAL)),
+                java.util.Set.of());
     }
 }

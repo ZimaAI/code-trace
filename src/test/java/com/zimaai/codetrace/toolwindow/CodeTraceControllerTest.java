@@ -176,7 +176,7 @@ class CodeTraceControllerTest {
 
     private static TraceDocument linkedDocumentWithThreeNodes() {
         return new TraceDocument(
-                2,
+                3,
                 "trace-2",
                 "Trace 2",
                 "",
@@ -187,12 +187,13 @@ class CodeTraceControllerTest {
                         new TraceNode("node-2", "line 2", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b"),
                         new TraceNode("node-3", "line 3", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c")),
                 List.of(new TraceLink("link-1", "node-2", "node-3",
-                        Instant.parse("2026-05-29T10:00:00Z"), TraceLinkKind.MANUAL)));
+                        Instant.parse("2026-05-29T10:00:00Z"), TraceLinkKind.MANUAL)),
+                java.util.Set.of());
     }
 
     private static TraceDocument documentWithThreeNodes() {
         return new TraceDocument(
-                2,
+                3,
                 "trace-1",
                 "Trace 1",
                 "note",
@@ -202,6 +203,7 @@ class CodeTraceControllerTest {
                         new TraceNode("node-1", "line 1", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a"),
                         new TraceNode("node-2", "line 2", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b"),
                         new TraceNode("node-3", "line 3", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c")),
-                List.<TraceLink>of());
+                List.<TraceLink>of(),
+                java.util.Set.of());
     }
 }
