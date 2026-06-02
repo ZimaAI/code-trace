@@ -1,6 +1,7 @@
 package com.zimaai.codetrace.toolwindow;
 
 import com.zimaai.codetrace.model.TraceDocument;
+import java.util.Set;
 
 public final class CodeTraceState {
     private String currentFileName;
@@ -8,6 +9,7 @@ public final class CodeTraceState {
     private String pendingLinkSourceId;
     private String preferredSelectedNodeId;
     private String focusedNodeId;
+    private Set<String> pendingExpandedNodeIds;
 
     public String currentFileName() {
         return currentFileName;
@@ -65,5 +67,15 @@ public final class CodeTraceState {
 
     void clearFocusedNodeId() {
         this.focusedNodeId = null;
+    }
+
+    Set<String> consumeExpandedNodeIds() {
+        Set<String> value = pendingExpandedNodeIds;
+        pendingExpandedNodeIds = null;
+        return value;
+    }
+
+    void setExpandedNodeIds(Set<String> expandedNodeIds) {
+        this.pendingExpandedNodeIds = expandedNodeIds;
     }
 }

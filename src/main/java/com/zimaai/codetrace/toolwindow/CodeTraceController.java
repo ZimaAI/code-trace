@@ -198,6 +198,12 @@ public final class CodeTraceController {
         return state.consumePreferredSelectedNodeId();
     }
 
+    public void setExpandedNodes(Set<String> expandedNodeIds) {
+        if (requireDocument().expandedNodeIds().equals(expandedNodeIds)) return;
+        TraceDocument updated = editor.setExpandedNodeIds(requireDocument(), expandedNodeIds, Instant.now());
+        persist(updated);
+    }
+
     private TraceDocument requireDocument() {
         return Objects.requireNonNull(state.currentDocument(), "currentDocument");
     }

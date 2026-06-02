@@ -3,6 +3,7 @@ package com.zimaai.codetrace.toolwindow;
 import com.intellij.icons.AllIcons;
 import com.intellij.ui.JBSplitter;
 import com.intellij.util.ui.JBUI;
+import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceLink;
 import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
@@ -10,8 +11,10 @@ import java.awt.BorderLayout;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.swing.DropMode;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -20,8 +23,10 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
+import javax.swing.JTree;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.tree.TreePath;
 
 public final class CodeTracePanel {
     private static final List<String> TOP_TOOLBAR_BUTTON_LABELS = List.of("Refresh", "Toggle Files");
@@ -45,8 +50,11 @@ public final class CodeTracePanel {
 
     public CodeTracePanel(CodeTraceController controller) {
         this.controller = controller;
-        editorPanel.nodeList().setCellRenderer(
-                new LinkedNodeListCellRenderer(() -> controller.state().currentDocument(), () -> controller.state().pendingLinkSourceId()));
+        editorPanel.nodeTree().setCellRenderer(
+                new LinkedNodeTreeCellRenderer(
+                        () -> controller.state().currentDocument(),
+                        () -> controller.state().focusedNodeId(),
+                        () -> controller.state().pendingLinkSourceId()));
         configureLeftPaneActions();
         configureLayout();
         wireSelection();
@@ -130,15 +138,20 @@ public final class CodeTracePanel {
             rebuildView();
         });
 
-        editorPanel.nodeList().setDragEnabled(true);
-        editorPanel.nodeList().setDropMode(DropMode.INSERT);
-        editorPanel.nodeList().setTransferHandler(new NodeListReorderTransferHandler(controller, this::rebuildView));
+        editorPanel.nodeTree().setDragEnabled(true);
+        editorPanel.nodeTree().setDropMode(DropMode.ON_OR_INSERT);
 
-        editorPanel.nodeList().addListSelectionListener(event -> {
-            if (event.getValueIsAdjusting() || syncingNodeSelection) {
-                return;
+        // 拖拽处理器将在 Task 6 替换，这里先设为 null 避免编译错误
+        // （NodeListReorderTransferHandler 依赖 JBList，不再可用）
+        // 暂时不设 transfer handler
+
+        editorPanel.nodeTree().addTreeSelectionListener(event -> {
+            if (syncingNodeSelection) return;
+            TreePath path = editorPanel.nodeTree().getSelectionPath();
+            TraceNode selected = null;
+            if (path != null && path.getLastPathComponent() instanceof TraceNode node) {
+                selected = node;
             }
-            TraceNode selected = editorPanel.nodeList().getSelectedValue();
             selectedNodeId = selected == null ? null : selected.id();
             if (selectedNodeId == null) {
                 controller.clearFocusedNodeId();
@@ -149,11 +162,30 @@ public final class CodeTracePanel {
             refreshButtons();
         });
 
-        editorPanel.nodeList().addMouseListener(new java.awt.event.MouseAdapter() {
+        // Expand/collapse persistence
+        editorPanel.nodeTree().addTreeExpansionListener(new javax.swing.event.TreeExpansionListener() {
+            @Override
+            public void treeExpanded(javax.swing.event.TreeExpansionEvent event) {
+                persistExpandState();
+            }
+            @Override
+            public void treeCollapsed(javax.swing.event.TreeExpansionEvent event) {
+                persistExpandState();
+            }
+        });
+
+        // Double-click navigation
+        editorPanel.nodeTree().addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent event) {
-                if (event.getClickCount() == 2 && editorPanel.nodeList().getSelectedValue() != null) {
-                    controller.navigateToNode(editorPanel.nodeList().getSelectedValue());
+                if (event.getClickCount() == 2) {
+                    TreePath path = editorPanel.nodeTree().getPathForLocation(event.getX(), event.getY());
+                    if (path == null) {
+                        path = editorPanel.nodeTree().getSelectionPath();
+                    }
+                    if (path != null && path.getLastPathComponent() instanceof TraceNode node) {
+                        controller.navigateToNode(node);
+                    }
                 }
             }
         });
@@ -357,14 +389,10 @@ public final class CodeTracePanel {
     }
 
     private void editSelectedNode() {
-        TraceNode existing = editorPanel.nodeList().getSelectedValue();
-        if (existing == null) {
-            return;
-        }
+        TraceNode existing = findSelectedNode();
+        if (existing == null) return;
         NodeInput input = showNodeDialog("Edit Node", existing);
-        if (input == null) {
-            return;
-        }
+        if (input == null) return;
         TraceNode updated = new TraceNode(
                 existing.id(),
                 input.displayName(),
@@ -374,7 +402,9 @@ public final class CodeTracePanel {
                 input.line(),
                 input.language(),
                 input.note(),
-                input.navigationHint());
+                input.navigationHint(),
+                existing.parentId(),
+                input.title());
         controller.updateNode(updated);
         rebuildView();
     }
@@ -464,7 +494,54 @@ public final class CodeTracePanel {
 
     private void selectAndNavigateToNode(TraceNode node) {
         controller.navigateToNode(node);
-        editorPanel.nodeList().setSelectedValue(node, true);
+        JTree tree = editorPanel.nodeTree();
+        TraceTreeModel model = (TraceTreeModel) tree.getModel();
+        TreePath rootPath = new TreePath(model.getRoot());
+        TreePath nodePath = findPathForNode(model, rootPath, node);
+        if (nodePath != null) {
+            tree.setSelectionPath(nodePath);
+            tree.scrollPathToVisible(nodePath);
+        }
+    }
+
+    private TreePath findPathForNode(TraceTreeModel model, TreePath parentPath, TraceNode target) {
+        Object parent = parentPath.getLastPathComponent();
+        for (int i = 0; i < model.getChildCount(parent); i++) {
+            TraceNode child = (TraceNode) model.getChild(parent, i);
+            TreePath childPath = parentPath.pathByAddingChild(child);
+            if (child.id().equals(target.id())) return childPath;
+            TreePath found = findPathForNode(model, childPath, target);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private void persistExpandState() {
+        TraceDocument doc = controller.state().currentDocument();
+        if (doc == null) return;
+        JTree tree = editorPanel.nodeTree();
+        Set<String> expanded = new HashSet<>();
+        for (int i = 0; i < tree.getRowCount(); i++) {
+            TreePath path = tree.getPathForRow(i);
+            if (tree.isExpanded(path) && path.getLastPathComponent() instanceof TraceNode node) {
+                expanded.add(node.id());
+            }
+        }
+        controller.setExpandedNodes(expanded);
+    }
+
+    private void restoreExpandState(TraceDocument document) {
+        if (document == null || document.expandedNodeIds().isEmpty()) return;
+        JTree tree = editorPanel.nodeTree();
+        TraceTreeModel model = (TraceTreeModel) tree.getModel();
+        if (model == null) return;
+        for (int i = 0; i < tree.getRowCount(); i++) {
+            TreePath path = tree.getPathForRow(i);
+            if (path.getLastPathComponent() instanceof TraceNode node
+                    && document.expandedNodeIds().contains(node.id())) {
+                tree.expandPath(path);
+            }
+        }
     }
 
     private NodeInput showNodeDialog(String title, TraceNode initial) {
@@ -474,6 +551,7 @@ public final class CodeTracePanel {
         javax.swing.JTextField fileField = new javax.swing.JTextField(initial == null ? "" : initial.filePath());
         javax.swing.JTextField lineField = new javax.swing.JTextField(initial == null ? "1" : Integer.toString(initial.line()));
         javax.swing.JTextField languageField = new javax.swing.JTextField(initial == null ? "UNKNOWN" : initial.language());
+        javax.swing.JTextField titleField = new javax.swing.JTextField(initial == null || initial.title() == null ? "" : initial.title());
         javax.swing.JTextField hintField = new javax.swing.JTextField(initial == null ? "" : initial.navigationHint());
         javax.swing.JTextField noteField = new javax.swing.JTextField(initial == null ? "" : initial.note());
 
@@ -490,6 +568,8 @@ public final class CodeTracePanel {
         panel.add(lineField);
         panel.add(new javax.swing.JLabel("Language"));
         panel.add(languageField);
+        panel.add(new javax.swing.JLabel("Title"));
+        panel.add(titleField);
         panel.add(new javax.swing.JLabel("Navigation Hint"));
         panel.add(hintField);
         panel.add(new javax.swing.JLabel("Node Note"));
@@ -513,7 +593,8 @@ public final class CodeTracePanel {
                 Math.max(1, line),
                 languageField.getText().trim().isEmpty() ? "UNKNOWN" : languageField.getText().trim(),
                 noteField.getText(),
-                hintField.getText().trim());
+                hintField.getText().trim(),
+                titleField.getText().trim());
     }
 
     private void rebuildView() {
@@ -530,7 +611,7 @@ public final class CodeTracePanel {
             syncingTraceNote = false;
             persistedTraceNote = "";
             syncingNodeSelection = true;
-            editorPanel.nodeList().setListData(new TraceNode[0]);
+            editorPanel.nodeTree().setModel(null);
             syncingNodeSelection = false;
             selectedNodeId = null;
             controller.consumePreferredSelectedNodeId();
@@ -553,8 +634,10 @@ public final class CodeTracePanel {
         syncingTraceNote = false;
 
         syncingNodeSelection = true;
-        editorPanel.nodeList().setListData(document.nodes().toArray(TraceNode[]::new));
+        TraceTreeModel model = new TraceTreeModel(() -> controller.state().currentDocument());
+        editorPanel.nodeTree().setModel(model);
         restoreSelection(document.nodes());
+        restoreExpandState(document);
         syncingNodeSelection = false;
         editorPanel.linkStatus().setText("Link source: "
                 + (controller.state().pendingLinkSourceId() == null ? "none" : controller.state().pendingLinkSourceId()));
@@ -602,6 +685,12 @@ public final class CodeTracePanel {
         if (selectedNodeId == null || controller.state().currentDocument() == null) {
             return null;
         }
+        JTree tree = editorPanel.nodeTree();
+        TreePath path = tree.getSelectionPath();
+        if (path != null && path.getLastPathComponent() instanceof TraceNode node) {
+            return node.id().equals(selectedNodeId) ? node : null;
+        }
+        // fallback: search document
         return controller.state().currentDocument().nodes().stream()
                 .filter(node -> node.id().equals(selectedNodeId))
                 .findFirst()
@@ -660,14 +749,29 @@ public final class CodeTracePanel {
     private void restoreSelection(List<TraceNode> nodes) {
         String preferredSelectedNodeId = controller.consumePreferredSelectedNodeId();
         selectedNodeId = NodeSelectionPolicy.resolveSelectedNodeId(nodes, selectedNodeId, preferredSelectedNodeId);
-        int selectedIndex = NodeSelectionPolicy.indexOfNode(nodes, selectedNodeId);
-        if (selectedIndex >= 0) {
-            controller.setFocusedNodeId(selectedNodeId);
-            editorPanel.nodeList().setSelectedIndex(selectedIndex);
+        if (selectedNodeId == null) {
+            controller.clearFocusedNodeId();
+            editorPanel.nodeTree().clearSelection();
+            return;
+        }
+        controller.setFocusedNodeId(selectedNodeId);
+        JTree tree = editorPanel.nodeTree();
+        TraceTreeModel model = (TraceTreeModel) tree.getModel();
+        if (model == null) return;
+        TraceNode target = findNodeById(selectedNodeId);
+        if (target == null) {
+            selectedNodeId = null;
+            controller.clearFocusedNodeId();
+            tree.clearSelection();
+            return;
+        }
+        TreePath nodePath = findPathForNode(model, new TreePath(model.getRoot()), target);
+        if (nodePath != null) {
+            tree.setSelectionPath(nodePath);
         } else {
             selectedNodeId = null;
             controller.clearFocusedNodeId();
-            editorPanel.nodeList().clearSelection();
+            tree.clearSelection();
         }
     }
 
@@ -687,7 +791,8 @@ public final class CodeTracePanel {
             int line,
             String language,
             String note,
-            String navigationHint) {
+            String navigationHint,
+            String title) {
     }
 
     private record LinkedNodes(

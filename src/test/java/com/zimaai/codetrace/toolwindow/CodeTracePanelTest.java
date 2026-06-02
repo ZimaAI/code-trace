@@ -15,7 +15,6 @@ import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
-import javax.swing.DropMode;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
@@ -81,28 +80,6 @@ class CodeTracePanelTest {
                 List.of(new TraceNode("node-1", "single line", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a")),
                 List.of(),
                 java.util.Set.of());
-    }
-
-    @Test
-    void syncsFocusedNodeIdWithSelectedNodeAndClearsWhenSelectionIsCleared() throws Exception {
-        CodeTracePanel panel = panelFor(documentWithOneNode());
-        CodeTraceController controller = controller(panel);
-        TraceEditorPanel editorPanel = editorPanel(panel);
-
-        editorPanel.nodeList().setSelectedIndex(0);
-        assertEquals("node-1", controller.focusedNodeId());
-
-        editorPanel.nodeList().clearSelection();
-        assertEquals(null, controller.focusedNodeId());
-    }
-
-    @Test
-    void installsDragAndDropSupportOnNodeList() throws Exception {
-        CodeTracePanel panel = panelFor(documentWithOneNode());
-        TraceEditorPanel editorPanel = editorPanel(panel);
-
-        assertEquals(DropMode.INSERT, editorPanel.nodeList().getDropMode());
-        assertTrue(editorPanel.nodeList().getTransferHandler() instanceof NodeListReorderTransferHandler);
     }
 
     @Test

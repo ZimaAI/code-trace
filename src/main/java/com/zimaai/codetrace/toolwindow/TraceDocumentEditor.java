@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public final class TraceDocumentEditor {
@@ -147,5 +148,18 @@ public final class TraceDocumentEditor {
                 document.nodes(),
                 links,
                 document.expandedNodeIds());
+    }
+
+    public TraceDocument setExpandedNodeIds(TraceDocument document, Set<String> expandedNodeIds, Instant now) {
+        return new TraceDocument(
+                3,
+                document.id(),
+                document.name(),
+                document.description(),
+                document.createdAt(),
+                now,
+                document.nodes(),
+                document.links(),
+                expandedNodeIds);
     }
 }

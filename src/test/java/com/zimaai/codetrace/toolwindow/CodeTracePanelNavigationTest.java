@@ -29,7 +29,7 @@ class CodeTracePanelNavigationTest {
         AtomicReference<TraceNode> navigated = new AtomicReference<>();
         CodeTracePanel panel = panelFor(documentWithLinkedAndUnlinkedNodes(), navigated);
 
-        panel.editorPanel().nodeList().setSelectedIndex(2);
+        panel.editorPanel().nodeTree().setSelectionRow(2);
 
         assertFalse(panel.editorPanel().goToLinkedButton().isEnabled());
     }
@@ -40,13 +40,13 @@ class CodeTracePanelNavigationTest {
         CodeTracePanel panel = panelFor(documentWithLinkedAndUnlinkedNodes(), navigated);
 
         // Selecting node-1 (source of link-1 to node-2) has 1 linked node: node-2
-        panel.editorPanel().nodeList().setSelectedIndex(0);
+        panel.editorPanel().nodeTree().setSelectionRow(0);
         assertTrue(panel.editorPanel().goToLinkedButton().isEnabled());
         panel.editorPanel().goToLinkedButton().doClick();
         assertEquals("node-2", navigated.get().id());
 
         // Selecting node-2 (target of link-1 from node-1) has 1 linked node: node-1
-        panel.editorPanel().nodeList().setSelectedIndex(1);
+        panel.editorPanel().nodeTree().setSelectionRow(1);
         panel.editorPanel().goToLinkedButton().doClick();
         assertEquals("node-1", navigated.get().id());
     }
@@ -56,18 +56,18 @@ class CodeTracePanelNavigationTest {
         AtomicReference<TraceNode> navigated = new AtomicReference<>();
         CodeTracePanel missingTargetPanel = panelFor(documentWithMissingTarget(), navigated);
 
-        missingTargetPanel.editorPanel().nodeList().setSelectedIndex(0);
+        missingTargetPanel.editorPanel().nodeTree().setSelectionRow(0);
         assertTrue(missingTargetPanel.editorPanel().goToLinkedButton().isEnabled());
 
         CodeTracePanel unlinkPanel = panelFor(documentWithLinkedAndUnlinkedNodes(), new AtomicReference<>());
-        unlinkPanel.editorPanel().nodeList().setSelectedIndex(0);
+        unlinkPanel.editorPanel().nodeTree().setSelectionRow(0);
         unlinkPanel.editorPanel().unlinkButton().doClick();
         assertFalse(unlinkPanel.editorPanel().goToLinkedButton().isEnabled());
 
         CodeTracePanel deletePanel = panelFor(documentWithLinkedAndUnlinkedNodes(), new AtomicReference<>());
-        deletePanel.editorPanel().nodeList().setSelectedIndex(0);
+        deletePanel.editorPanel().nodeTree().setSelectionRow(0);
         deletePanel.editorPanel().deleteNodeButton().doClick();
-        assertTrue(deletePanel.editorPanel().nodeList().isSelectionEmpty());
+        assertTrue(deletePanel.editorPanel().nodeTree().isSelectionEmpty());
         assertFalse(deletePanel.editorPanel().goToLinkedButton().isEnabled());
     }
 
@@ -76,10 +76,10 @@ class CodeTracePanelNavigationTest {
         AtomicReference<TraceNode> navigated = new AtomicReference<>();
         CodeTracePanel panel = panelFor(documentWithLinkedAndUnlinkedNodes(), navigated);
 
-        panel.editorPanel().nodeList().setSelectedIndex(1);
+        panel.editorPanel().nodeTree().setSelectionRow(1);
 
         MouseEvent event = new MouseEvent(
-                panel.editorPanel().nodeList(),
+                panel.editorPanel().nodeTree(),
                 MouseEvent.MOUSE_CLICKED,
                 System.currentTimeMillis(),
                 0,
@@ -87,7 +87,7 @@ class CodeTracePanelNavigationTest {
                 10,
                 2,
                 false);
-        for (MouseListener listener : panel.editorPanel().nodeList().getMouseListeners()) {
+        for (MouseListener listener : panel.editorPanel().nodeTree().getMouseListeners()) {
             listener.mouseClicked(event);
         }
 
@@ -100,7 +100,7 @@ class CodeTracePanelNavigationTest {
         CodeTracePanel panel = panelFor(documentWithMultipleLinks(), navigated);
 
         // node-A has 3 linked nodes: node-B, node-C (as targets), node-D (as source)
-        panel.editorPanel().nodeList().setSelectedIndex(0);
+        panel.editorPanel().nodeTree().setSelectionRow(0);
         assertTrue(panel.editorPanel().goToLinkedButton().isEnabled());
 
         JButton button = panel.editorPanel().goToLinkedButton();
