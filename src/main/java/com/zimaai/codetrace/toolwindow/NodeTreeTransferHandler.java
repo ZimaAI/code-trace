@@ -59,42 +59,54 @@ public final class NodeTreeTransferHandler extends TransferHandler {
             return false;
         }
 
-        try {
-            // Detect indent: compare drop X with target row X
-            Point dropPoint = support.getDropLocation().getDropPoint();
-            int row = tree.getRowForPath(targetPath);
-            Rectangle rowBounds = tree.getRowBounds(row);
-            if (rowBounds != null && dropPoint != null) {
-                int deltaX = dropPoint.x - rowBounds.x;
-                if (deltaX > INDENT_THRESHOLD
-                        && !sourceNode.id().equals(targetNode.id())
-                        && !isDescendantOf(targetNode, sourceNode, controller.state().currentDocument())) {
-                    // Reparent: make source a child of target.
-                    // Defer UI refresh so Swing DnD cleanup finishes before model rebuild.
-                    controller.setParent(sourceNode.id(), targetNode.id());
-                    SwingUtilities.invokeLater(refreshUi);
-                    return true;
-                }
-            }
+        // Validate and capture all data synchronously; defer state mutation
+        // and UI refresh so Swing DnD cleanup completes before the model changes.
+        // Otherwise IntelliJ's CachingTreePath will try to resolve a stale child
+        // index against the already-updated model.
+        String sourceId = sourceNode.id();
+        TraceDocument doc = controller.state().currentDocument();
 
-            // Otherwise, reorder within same parent
-            String newParentId = targetNode.parentId();
-            // Guard: a node cannot be its own parent, and the move must not create a cycle.
-            if (sourceNode.id().equals(newParentId)
-                    || isDescendantOf(targetNode, sourceNode, controller.state().currentDocument())) {
-                return false;
+        // Detect indent: compare drop X with target row X
+        Point dropPoint = support.getDropLocation().getDropPoint();
+        int row = tree.getRowForPath(targetPath);
+        Rectangle rowBounds = tree.getRowBounds(row);
+        if (rowBounds != null && dropPoint != null) {
+            int deltaX = dropPoint.x - rowBounds.x;
+            if (deltaX > INDENT_THRESHOLD
+                    && !sourceId.equals(targetNode.id())
+                    && !isDescendantOf(targetNode, sourceNode, doc)) {
+                // Reparent: make source a child of target.
+                String targetId = targetNode.id();
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        controller.setParent(sourceId, targetId);
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                    refreshUi.run();
+                });
+                return true;
             }
-            int childIndex = dropLocation.getChildIndex();
-            if (childIndex < 0) {
-                // Dropped on the target node -> reorder after it within same parent
-                controller.setParent(sourceNode.id(), newParentId);
-            } else {
-                controller.setParentAndIndex(sourceNode.id(), newParentId, childIndex);
-            }
-        } catch (IllegalArgumentException ignored) {
+        }
+
+        // Otherwise, reorder within same parent
+        String newParentId = targetNode.parentId();
+        // Guard: a node cannot be its own parent, and the move must not create a cycle.
+        if (sourceId.equals(newParentId)
+                || isDescendantOf(targetNode, sourceNode, doc)) {
             return false;
         }
-        SwingUtilities.invokeLater(refreshUi);
+        int childIndex = dropLocation.getChildIndex();
+        SwingUtilities.invokeLater(() -> {
+            try {
+                if (childIndex < 0) {
+                    controller.setParent(sourceId, newParentId);
+                } else {
+                    controller.setParentAndIndex(sourceId, newParentId, childIndex);
+                }
+            } catch (IllegalArgumentException ignored) {
+            }
+            refreshUi.run();
+        });
         return true;
     }
 
