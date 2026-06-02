@@ -56,6 +56,11 @@ public final class NodeTreeTransferHandler extends TransferHandler {
             return false;
         }
 
+        // Clear drop location BEFORE modifying the model to avoid stale path
+        // references in IntelliJ's CachingTreePath when Swing repaints the old
+        // drop line during cleanup after importData returns.
+        tree.setDropLocation(null);
+
         // Detect indent: compare drop X with target row X
         Point dropPoint = support.getDropLocation().getDropPoint();
         int row = tree.getRowForPath(targetPath);
