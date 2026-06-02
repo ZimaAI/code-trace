@@ -46,26 +46,19 @@
 1. Every node row text is exactly one line of code (`displayName`).
 2. Select one node and click `Set as Source`; the same node remains selected and link status shows source id.
 3. Select another node and click `Link To Here`; source/target styling appears and the target node remains selected.
-4. Click `Go to Source`; editor navigates to the linked source node code.
-5. Click `Go to Target`; editor navigates to the linked target node code.
-6. Click `Unlink`; linked styling is removed, the current node remains selected, and both jump buttons become disabled.
-7. Use `Move Up` or `Move Down` on a selected node and confirm the same node remains selected after the list refreshes.
-8. Delete the currently selected linked node and confirm the linked pair is removed, the node list ends with no selection, and both jump buttons are disabled.
-
-## Responsive Layout
-
-1. Narrow the tool window until the node toolbar cannot fit on one row.
-2. Confirm the node toolbar wraps onto multiple lines.
-3. Confirm no node toolbar button is hidden or moved into an overflow menu.
+4. Click `Unlink`; linked styling is removed and the current node remains selected.
+5. Drag a node to a new position and confirm the order changes immediately after drop.
+6. Drag a linked node and confirm the linked pair moves together.
+7. Delete the currently selected node and confirm the node list ends with no selection.
 
 ## Editor Popup Action
 
 1. Right-click in an in-project editor file and find `Add to code-trace`.
-2. Ensure a JSON is selected in Tool Window before triggering the action.
-3. Trigger `Add to code-trace` and confirm the source node becomes the selected node in the Tool Window.
-4. If the same source line already exists, trigger the action again and confirm the existing source node becomes selected instead of keeping the previous selection.
-5. If target confirmation appears and you choose `Yes`, target node and `DETECTED` link are created, but the selected node remains the source node.
-6. Trigger the action from a file outside the current project root and confirm a rejection message appears and the trace content does not change.
+2. Ensure a node is selected in Tool Window before triggering the action.
+3. Trigger `Add to code-trace` and confirm the source node is inserted directly below the selected node, then becomes selected after refresh.
+4. If no node is selected, trigger `Add to code-trace` and confirm the new source is appended to the bottom.
+5. If the same source line already exists, trigger the action again and confirm the existing source node is moved/kept at the insertion point and becomes selected.
+6. If target confirmation appears and you choose `Yes`, target node and `DETECTED` link are created, but the selected node remains the source node.
 
 ## Navigation
 
