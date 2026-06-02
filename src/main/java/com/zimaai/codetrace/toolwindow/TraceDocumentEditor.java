@@ -38,7 +38,9 @@ public final class TraceDocumentEditor {
                         node.line(),
                         node.language(),
                         note,
-                        node.navigationHint()));
+                        node.navigationHint(),
+                        node.parentId(),
+                        node.title()));
             } else {
                 updatedNodes.add(node);
             }
