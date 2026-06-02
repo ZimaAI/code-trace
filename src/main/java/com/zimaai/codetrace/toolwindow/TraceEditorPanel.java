@@ -6,8 +6,8 @@ import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.ColorUtil;
 import com.intellij.ui.JBColor;
-import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
+import javax.swing.JTree;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
@@ -25,7 +25,7 @@ import javax.swing.SwingConstants;
 public final class TraceEditorPanel {
     private final JBTextArea traceNote = new JBTextArea();
     private final JButton saveTraceNoteButton = new JButton("Save Trace Note", AllIcons.Actions.MenuSaveall);
-    private final JBList<TraceNode> nodeList = new JBList<>();
+    private final JTree nodeTree = new JTree();
     private final JBTextArea nodeNote = new JBTextArea();
     private final JButton saveNodeNoteButton = new JButton("Save Node Note", AllIcons.Actions.MenuSaveall);
     private final JButton editNodeButton = new JButton("Edit Node", AllIcons.Actions.Edit);
@@ -44,6 +44,11 @@ public final class TraceEditorPanel {
         configureTextArea(traceNote);
         configureTextArea(nodeNote);
 
+        // Configure JTree
+        nodeTree.setRootVisible(false);
+        nodeTree.setShowsRootHandles(true);
+        nodeTree.setEditable(false);
+
         JPanel traceNotePanel = new JPanel(new BorderLayout());
         traceNotePanel.setBorder(JBUI.Borders.empty(0, 0, 6, 0));
         traceNotePanel.add(new JBScrollPane(traceNote), BorderLayout.CENTER);
@@ -59,7 +64,7 @@ public final class TraceEditorPanel {
 
         JSplitPane split = new JSplitPane(
                 JSplitPane.VERTICAL_SPLIT,
-                new JBScrollPane(nodeList),
+                new JBScrollPane(nodeTree),
                 nodeNotePanel);
         split.setResizeWeight(0.7d);
 
@@ -140,8 +145,8 @@ public final class TraceEditorPanel {
         return saveTraceNoteButton;
     }
 
-    public JBList<TraceNode> nodeList() {
-        return nodeList;
+    public JTree nodeTree() {
+        return nodeTree;
     }
 
     public JBTextArea nodeNote() {

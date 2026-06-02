@@ -71,4 +71,12 @@ class TraceEditorPanelTest {
         assertNotNull(panel.saveTraceNoteButton().getToolTipText(), "Save Trace Note button should have a tooltip");
         assertNotNull(panel.saveNodeNoteButton().getToolTipText(), "Save Node Note button should have a tooltip");
     }
+
+    @Test
+    void exposesJTreeInsteadOfJListAfterTreeMigration() {
+        TraceEditorPanel panel = new TraceEditorPanel();
+
+        assertNotNull(panel.nodeTree());
+        assertFalse(panel.nodeTree().isRootVisible());
+    }
 }
