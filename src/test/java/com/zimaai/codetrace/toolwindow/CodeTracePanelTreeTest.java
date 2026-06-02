@@ -102,6 +102,23 @@ class CodeTracePanelTreeTest {
         assertEquals(null, n2.parentId());
     }
 
+    @Test
+    void editDialogIncludesTitleField() throws Exception {
+        TraceDocument doc = new TraceDocument(
+                3, "t1", "T1", "", Instant.now(), Instant.now(),
+                List.of(new TraceNode("n1", "disp", "", "", "", 0, "", "", "", null, null)),
+                List.of(), Set.of());
+
+        CodeTracePanel panel = panelFor(doc);
+        CodeTraceController controller = controller(panel);
+
+        TraceNode updated = new TraceNode("n1", "disp", "", "", "", 0, "", "", "", null, "新标题");
+        controller.updateNode(updated);
+
+        TraceNode reloaded = controller.state().currentDocument().nodes().get(0);
+        assertEquals("新标题", reloaded.title());
+    }
+
     private CodeTracePanel panelFor(TraceDocument document) {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
         storage.save("trace-1.json", document);

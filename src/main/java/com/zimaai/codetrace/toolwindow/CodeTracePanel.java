@@ -544,17 +544,19 @@ public final class CodeTracePanel {
     }
 
     private NodeInput showNodeDialog(String title, TraceNode initial) {
+        javax.swing.JTextField titleField = new javax.swing.JTextField(initial == null || initial.title() == null ? "" : initial.title());
         javax.swing.JTextField nameField = new javax.swing.JTextField(initial == null ? "" : initial.displayName());
         javax.swing.JTextField qualifiedField = new javax.swing.JTextField(initial == null ? "" : initial.qualifiedName());
         javax.swing.JTextField signatureField = new javax.swing.JTextField(initial == null ? "" : initial.signature());
         javax.swing.JTextField fileField = new javax.swing.JTextField(initial == null ? "" : initial.filePath());
         javax.swing.JTextField lineField = new javax.swing.JTextField(initial == null ? "1" : Integer.toString(initial.line()));
         javax.swing.JTextField languageField = new javax.swing.JTextField(initial == null ? "UNKNOWN" : initial.language());
-        javax.swing.JTextField titleField = new javax.swing.JTextField(initial == null || initial.title() == null ? "" : initial.title());
         javax.swing.JTextField hintField = new javax.swing.JTextField(initial == null ? "" : initial.navigationHint());
         javax.swing.JTextField noteField = new javax.swing.JTextField(initial == null ? "" : initial.note());
 
         JPanel panel = new JPanel(new java.awt.GridLayout(0, 1));
+        panel.add(new javax.swing.JLabel("Title"));
+        panel.add(titleField);
         panel.add(new javax.swing.JLabel("Display Name"));
         panel.add(nameField);
         panel.add(new javax.swing.JLabel("Qualified Name"));
@@ -567,8 +569,6 @@ public final class CodeTracePanel {
         panel.add(lineField);
         panel.add(new javax.swing.JLabel("Language"));
         panel.add(languageField);
-        panel.add(new javax.swing.JLabel("Title"));
-        panel.add(titleField);
         panel.add(new javax.swing.JLabel("Navigation Hint"));
         panel.add(hintField);
         panel.add(new javax.swing.JLabel("Node Note"));
@@ -585,6 +585,7 @@ public final class CodeTracePanel {
             line = 1;
         }
         return new NodeInput(
+                titleField.getText().trim(),
                 nameField.getText().trim(),
                 qualifiedField.getText().trim(),
                 signatureField.getText().trim(),
@@ -592,8 +593,7 @@ public final class CodeTracePanel {
                 Math.max(1, line),
                 languageField.getText().trim().isEmpty() ? "UNKNOWN" : languageField.getText().trim(),
                 noteField.getText(),
-                hintField.getText().trim(),
-                titleField.getText().trim());
+                hintField.getText().trim());
     }
 
     private void rebuildView() {
@@ -783,6 +783,7 @@ public final class CodeTracePanel {
     }
 
     private record NodeInput(
+            String title,
             String displayName,
             String qualifiedName,
             String signature,
@@ -790,8 +791,7 @@ public final class CodeTracePanel {
             int line,
             String language,
             String note,
-            String navigationHint,
-            String title) {
+            String navigationHint) {
     }
 
     private record LinkedNodes(
