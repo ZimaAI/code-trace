@@ -198,6 +198,16 @@ public final class CodeTraceController {
         return state.consumePreferredSelectedNodeId();
     }
 
+    public void setParent(String nodeId, String newParentId) {
+        TraceDocument updated = editor.setParent(requireDocument(), nodeId, newParentId, Instant.now());
+        persist(updated);
+    }
+
+    public void setParentAndIndex(String nodeId, String newParentId, int index) {
+        TraceDocument updated = editor.setParentAndIndex(requireDocument(), nodeId, newParentId, index, Instant.now());
+        persist(updated);
+    }
+
     public void setExpandedNodes(Set<String> expandedNodeIds) {
         if (requireDocument().expandedNodeIds().equals(expandedNodeIds)) return;
         TraceDocument updated = editor.setExpandedNodeIds(requireDocument(), expandedNodeIds, Instant.now());

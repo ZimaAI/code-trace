@@ -141,9 +141,8 @@ public final class CodeTracePanel {
         editorPanel.nodeTree().setDragEnabled(true);
         editorPanel.nodeTree().setDropMode(DropMode.ON_OR_INSERT);
 
-        // 拖拽处理器将在 Task 6 替换，这里先设为 null 避免编译错误
-        // （NodeListReorderTransferHandler 依赖 JBList，不再可用）
-        // 暂时不设 transfer handler
+        editorPanel.nodeTree().setTransferHandler(
+                new NodeTreeTransferHandler(controller, this::rebuildView));
 
         editorPanel.nodeTree().addTreeSelectionListener(event -> {
             if (syncingNodeSelection) return;

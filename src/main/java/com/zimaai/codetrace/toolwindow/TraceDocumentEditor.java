@@ -150,6 +150,61 @@ public final class TraceDocumentEditor {
                 document.expandedNodeIds());
     }
 
+    public TraceDocument setParent(TraceDocument document, String nodeId, String newParentId, Instant now) {
+        List<TraceNode> updated = new ArrayList<>(document.nodes());
+        for (int i = 0; i < updated.size(); i++) {
+            if (updated.get(i).id().equals(nodeId)) {
+                TraceNode node = updated.get(i);
+                updated.set(i, new TraceNode(
+                        node.id(), node.displayName(), node.qualifiedName(), node.signature(),
+                        node.filePath(), node.line(), node.language(), node.note(),
+                        node.navigationHint(), newParentId, node.title()));
+                break;
+            }
+        }
+        return new TraceDocument(
+                3,
+                document.id(), document.name(), document.description(),
+                document.createdAt(), now,
+                List.copyOf(updated), document.links(), document.expandedNodeIds());
+    }
+
+    public TraceDocument setParentAndIndex(TraceDocument document, String nodeId,
+                                           String newParentId, int targetIndex, Instant now) {
+        List<TraceNode> nodes = new ArrayList<>(document.nodes());
+        for (int i = 0; i < nodes.size(); i++) {
+            if (nodes.get(i).id().equals(nodeId)) {
+                TraceNode node = nodes.get(i);
+                TraceNode updated = new TraceNode(
+                        node.id(), node.displayName(), node.qualifiedName(), node.signature(),
+                        node.filePath(), node.line(), node.language(), node.note(),
+                        node.navigationHint(), newParentId, node.title());
+                nodes.remove(i);
+                int insertIdx = 0;
+                int siblingsSeen = 0;
+                for (int j = 0; j < nodes.size(); j++) {
+                    if (Objects.equals(nodes.get(j).parentId(), newParentId)) {
+                        if (siblingsSeen == targetIndex) {
+                            insertIdx = j;
+                            break;
+                        }
+                        siblingsSeen++;
+                    }
+                }
+                if (siblingsSeen <= targetIndex) {
+                    insertIdx = nodes.size();
+                }
+                nodes.add(insertIdx, updated);
+                break;
+            }
+        }
+        return new TraceDocument(
+                3,
+                document.id(), document.name(), document.description(),
+                document.createdAt(), now,
+                List.copyOf(nodes), document.links(), document.expandedNodeIds());
+    }
+
     public TraceDocument setExpandedNodeIds(TraceDocument document, Set<String> expandedNodeIds, Instant now) {
         return new TraceDocument(
                 3,

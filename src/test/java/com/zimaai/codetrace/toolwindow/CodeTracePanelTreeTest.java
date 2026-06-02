@@ -69,6 +69,39 @@ class CodeTracePanelTreeTest {
         assertTrue(tree.getCellRenderer() instanceof LinkedNodeTreeCellRenderer);
     }
 
+    @Test
+    void installsTreeDragAndDropSupport() throws Exception {
+        TraceDocument doc = new TraceDocument(
+                3, "t1", "T1", "", Instant.now(), Instant.now(),
+                List.of(new TraceNode("n1", "node", "", "", "", 0, "", "", "")),
+                List.of(), Set.of());
+
+        CodeTracePanel panel = panelFor(doc);
+        JTree tree = tree(panel);
+
+        assertTrue(tree.getTransferHandler() instanceof NodeTreeTransferHandler);
+    }
+
+    @Test
+    void dragReparentSetsParentId() throws Exception {
+        TraceDocument doc = new TraceDocument(
+                3, "t1", "T1", "", Instant.now(), Instant.now(),
+                List.of(
+                        new TraceNode("n1", "parent", "", "", "", 0, "", "", ""),
+                        new TraceNode("n2", "child", "", "", "", 0, "", "", "", "n1", null)),
+                List.of(), Set.of());
+
+        CodeTracePanel panel = panelFor(doc);
+        CodeTraceController controller = controller(panel);
+
+        // Move child out: set n2 parentId to null
+        controller.setParent("n2", null);
+
+        TraceNode n2 = controller.state().currentDocument().nodes().stream()
+                .filter(n -> n.id().equals("n2")).findFirst().orElseThrow();
+        assertEquals(null, n2.parentId());
+    }
+
     private CodeTracePanel panelFor(TraceDocument document) {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
         storage.save("trace-1.json", document);
