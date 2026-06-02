@@ -351,7 +351,7 @@ public final class CodeTracePanel {
             TraceNode single = !linked.sources().isEmpty()
                     ? linked.sources().get(0)
                     : linked.targets().get(0);
-            controller.navigateToNode(single);
+            selectAndNavigateToNode(single);
             return;
         }
 
@@ -373,7 +373,7 @@ public final class CodeTracePanel {
             for (TraceNode node : linked.sources()) {
                 JMenuItem item = new JMenuItem(node.displayName());
                 item.setToolTipText(node.filePath() + ":" + node.line());
-                item.addActionListener(e -> controller.navigateToNode(node));
+                item.addActionListener(e -> selectAndNavigateToNode(node));
                 menu.add(item);
             }
         }
@@ -394,13 +394,18 @@ public final class CodeTracePanel {
             for (TraceNode node : linked.targets()) {
                 JMenuItem item = new JMenuItem(node.displayName());
                 item.setToolTipText(node.filePath() + ":" + node.line());
-                item.addActionListener(e -> controller.navigateToNode(node));
+                item.addActionListener(e -> selectAndNavigateToNode(node));
                 menu.add(item);
             }
         }
 
         JButton button = editorPanel.goToLinkedButton();
         menu.show(button, 0, button.getHeight());
+    }
+
+    private void selectAndNavigateToNode(TraceNode node) {
+        controller.navigateToNode(node);
+        editorPanel.nodeList().setSelectedValue(node, true);
     }
 
     private NodeInput showNodeDialog(String title, TraceNode initial) {
