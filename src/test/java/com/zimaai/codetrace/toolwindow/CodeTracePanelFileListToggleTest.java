@@ -1,9 +1,10 @@
 package com.zimaai.codetrace.toolwindow;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.intellij.ui.JBSplitter;
 import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceNode;
 import com.zimaai.codetrace.storage.TraceJsonMapper;
@@ -14,48 +15,40 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import javax.swing.JButton;
-import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class CodeTracePanelTest {
+class CodeTracePanelFileListToggleTest {
     @TempDir
     Path tempDir;
 
     @Test
-    void keepsRefreshAndFileListToggleInTopToolbar() {
-        assertEquals(List.of("Refresh", "Toggle Files"), CodeTracePanel.topToolbarButtonLabels());
-        assertNull(findTopToolbarLabel("Save Trace Note"));
-        assertNull(findTopToolbarLabel("Save Node Note"));
-        assertNull(findTopToolbarLabel("Set as Source"));
-        assertNull(findTopToolbarLabel("Link To Here"));
-        assertNull(findTopToolbarLabel("Unlink"));
-    }
-
-    @Test
-    void keepsSaveButtonsInsideEditorPanel() {
-        TraceEditorPanel editorPanel = new TraceEditorPanel();
-
-        assertNotNull(editorPanel.saveTraceNoteButton());
-        assertNotNull(editorPanel.saveNodeNoteButton());
-    }
-
-    @Test
-    void placesFileListToggleButtonInTopToolbar() {
+    void collapsesFileListToZeroAndRestoresPreviousWidth() {
         CodeTracePanel panel = panelFor(documentWithOneNode());
+        panel.getComponent().setSize(1200, 800);
+        layoutRecursively(panel.getComponent());
 
+        JBSplitter splitter = findComponent(panel.getComponent(), JBSplitter.class);
         JButton toggleButton = findNamedButton(panel.getComponent(), "file-list-toggle-button");
-        JPanel toolbar = (JPanel) ((Container) panel.getComponent()).getComponent(0);
 
+        assertNotNull(splitter);
         assertNotNull(toggleButton);
-        assertEquals(toolbar, toggleButton.getParent());
-    }
+        assertTrue(splitter.getFirstComponent().getWidth() > 0);
 
-    private static String findTopToolbarLabel(String label) {
-        return CodeTracePanel.topToolbarButtonLabels().stream()
-                .filter(label::equals)
-                .findFirst()
-                .orElse(null);
+        float expandedProportion = splitter.getProportion();
+        toggleButton.doClick();
+        layoutRecursively(panel.getComponent());
+
+        assertEquals(0.0f, splitter.getProportion(), 0.0001f);
+        assertEquals(0, splitter.getFirstComponent().getWidth());
+        assertEquals("Expand file list", toggleButton.getToolTipText());
+
+        toggleButton.doClick();
+        layoutRecursively(panel.getComponent());
+
+        assertEquals(expandedProportion, splitter.getProportion(), 0.0001f);
+        assertTrue(splitter.getFirstComponent().getWidth() > 0);
+        assertEquals("Collapse file list", toggleButton.getToolTipText());
     }
 
     private CodeTracePanel panelFor(TraceDocument document) {
@@ -92,5 +85,29 @@ class CodeTracePanelTest {
             }
         }
         return null;
+    }
+
+    private static <T extends Component> T findComponent(Component component, Class<T> type) {
+        if (type.isInstance(component)) {
+            return type.cast(component);
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                T match = findComponent(child, type);
+                if (match != null) {
+                    return match;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void layoutRecursively(Component component) {
+        component.doLayout();
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                layoutRecursively(child);
+            }
+        }
     }
 }

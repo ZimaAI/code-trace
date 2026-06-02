@@ -23,18 +23,24 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 public final class CodeTracePanel {
-    private static final List<String> TOP_TOOLBAR_BUTTON_LABELS = List.of("Refresh");
+    private static final List<String> TOP_TOOLBAR_BUTTON_LABELS = List.of("Refresh", "Toggle Files");
+    private static final float DEFAULT_FILE_LIST_PROPORTION = 0.25f;
+    private static final String FILE_LIST_TOGGLE_BUTTON_NAME = "file-list-toggle-button";
     private final CodeTraceController controller;
     private final JPanel root = new JPanel(new BorderLayout());
     private final Map<String, JButton> buttons = new HashMap<>();
     private final TraceFileListPanel fileListPanel = new TraceFileListPanel();
     private final TraceEditorPanel editorPanel = new TraceEditorPanel();
+    private final JButton fileListToggleButton = new JButton("<");
     private boolean syncingTraceNote;
     private boolean syncingNodeNote;
     private boolean syncingNodeSelection;
+    private boolean fileListCollapsed;
+    private float expandedFileListProportion = DEFAULT_FILE_LIST_PROPORTION;
     private String persistedTraceNote = "";
     private String persistedNodeNote = "";
     private String selectedNodeId;
+    private JBSplitter split;
 
     public CodeTracePanel(CodeTraceController controller) {
         this.controller = controller;
@@ -78,10 +84,14 @@ public final class CodeTracePanel {
         JPanel toolbar = new JPanel();
         toolbar.setBorder(JBUI.Borders.empty(4, 4, 4, 4));
         for (String label : TOP_TOOLBAR_BUTTON_LABELS) {
-            addButton(toolbar, label, topToolbarAction(label));
+            if ("Toggle Files".equals(label)) {
+                configureFileListToggleButton(toolbar);
+            } else {
+                addButton(toolbar, label, topToolbarAction(label));
+            }
         }
 
-        JBSplitter split = new JBSplitter(false, 0.25f);
+        split = new JBSplitter(false, DEFAULT_FILE_LIST_PROPORTION);
         // Allow users to freely resize file list vs editor list panes.
         split.setHonorComponentsMinimumSize(false);
         split.setDividerWidth(12);
@@ -92,6 +102,7 @@ public final class CodeTracePanel {
 
         root.add(toolbar, BorderLayout.NORTH);
         root.add(split, BorderLayout.CENTER);
+        updateFileListToggleButton();
     }
 
     private Runnable topToolbarAction(String label) {
@@ -189,6 +200,39 @@ public final class CodeTracePanel {
         button.setToolTipText("Reload trace data from disk");
         buttons.put(label, button);
         toolbar.add(button);
+    }
+
+    private void configureFileListToggleButton(JPanel toolbar) {
+        fileListToggleButton.setName(FILE_LIST_TOGGLE_BUTTON_NAME);
+        fileListToggleButton.setFocusable(false);
+        fileListToggleButton.setMargin(JBUI.insets(2));
+        fileListToggleButton.addActionListener(event -> toggleFileList());
+        toolbar.add(fileListToggleButton);
+    }
+
+    private void toggleFileList() {
+        if (split == null) {
+            return;
+        }
+        if (fileListCollapsed) {
+            fileListCollapsed = false;
+            split.setProportion(expandedFileListProportion);
+        } else {
+            float currentProportion = split.getProportion();
+            if (currentProportion > 0.0f) {
+                expandedFileListProportion = currentProportion;
+            }
+            fileListCollapsed = true;
+            split.setProportion(0.0f);
+        }
+        updateFileListToggleButton();
+        split.revalidate();
+        split.repaint();
+    }
+
+    private void updateFileListToggleButton() {
+        fileListToggleButton.setText(fileListCollapsed ? ">" : "<");
+        fileListToggleButton.setToolTipText(fileListCollapsed ? "Expand file list" : "Collapse file list");
     }
 
     private void createFile() {
