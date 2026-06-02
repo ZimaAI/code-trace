@@ -50,6 +50,16 @@
 5. Drag a node to a new position and confirm the order changes immediately after drop.
 6. Drag a linked node and confirm the linked pair moves together.
 7. Delete the currently selected node and confirm the node list ends with no selection.
+8. Click `Edit Node` and verify the `Title` field is present above `Display Name`.
+9. Set a long title (>15 chars) and confirm it is truncated with `…` in the tree view.
+10. Verify the title appears as `title — displayName` format. When title is empty, only displayName is shown.
+11. Right-click a node and add a child node. A new node appears indented under the parent.
+12. Click the expand/collapse toggle next to a parent node. Child nodes appear/disappear.
+13. Collapse a parent, refresh the view, and confirm the collapsed state is restored.
+14. Focus a node by single-clicking it. Verify a `●` focus indicator appears on the far left of the node.
+15. Drag a node slightly to the right over a target node (indent > 20px) and drop. Verify it becomes a child of the target.
+16. Drag a child node to the left (align with parent level) and drop. Verify it becomes a root-level sibling.
+17. Delete a parent node that has children. Verify all descendant nodes are also removed.
 
 ## Editor Popup Action
 
