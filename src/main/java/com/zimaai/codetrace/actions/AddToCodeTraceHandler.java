@@ -37,7 +37,7 @@ public final class AddToCodeTraceHandler {
             prompts.showCaptureError(project, exception.getMessage());
             return;
         }
-        int sourceIndex = controller.addOrReuseNode(source);
+        int sourceIndex = controller.addOrReuseNodeAfterFocusedNode(source);
         String sourceId = controller.state().currentDocument().nodes().get(sourceIndex).id();
         controller.preferSelectedNode(sourceId);
         Optional<TraceNode> detectedTarget = captureService.detectTarget(project, editor, psiFile);

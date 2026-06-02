@@ -11,6 +11,8 @@ import com.zimaai.codetrace.storage.TraceJsonMapper;
 import com.zimaai.codetrace.storage.TraceStorageService;
 import com.zimaai.codetrace.toolwindow.CodeTraceController;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
@@ -157,6 +159,86 @@ class AddToCodeTraceHandlerTest {
         handler.handle(null, null, null);
 
         assertEquals("node-existing", controller.state().preferredSelectedNodeId());
+    }
+
+    @Test
+    void insertsSourceAfterFocusedNodeAndPrefersItAfterRefresh() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("trace-2.json", documentWithThreeNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("trace-2.json");
+        controller.setFocusedNodeId("node-2");
+
+        TraceNode source = new TraceNode(
+                "ignored-source-id",
+                "return authService.login(user);",
+                "AuthController#login",
+                "login(User user)",
+                "src/AuthController.java",
+                21,
+                "JAVA",
+                "",
+                "AuthController#login(User)");
+
+        AddToCodeTraceHandler handler = new AddToCodeTraceHandler(
+                controller,
+                new FakeCaptureService(source, Optional.empty()),
+                new RecordingPrompts(false),
+                () -> {
+                });
+
+        handler.handle(null, null, null);
+
+        String insertedId = controller.state().preferredSelectedNodeId();
+        assertEquals(List.of("node-1", "node-2", insertedId, "node-3"),
+                controller.state().currentDocument().nodes().stream().map(TraceNode::id).toList());
+    }
+
+    @Test
+    void appendsSourceToBottomWhenNothingIsFocused() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("trace-3.json", documentWithThreeNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("trace-3.json");
+
+        TraceNode source = new TraceNode(
+                "ignored-source-id",
+                "return authService.login(user);",
+                "AuthController#login",
+                "login(User user)",
+                "src/AuthController.java",
+                21,
+                "JAVA",
+                "",
+                "AuthController#login(User)");
+
+        AddToCodeTraceHandler handler = new AddToCodeTraceHandler(
+                controller,
+                new FakeCaptureService(source, Optional.empty()),
+                new RecordingPrompts(false),
+                () -> {
+                });
+
+        handler.handle(null, null, null);
+
+        assertEquals(4, controller.state().currentDocument().nodes().size());
+        assertEquals(controller.state().currentDocument().nodes().get(3).id(),
+                controller.state().preferredSelectedNodeId());
+    }
+
+    private static TraceDocument documentWithThreeNodes() {
+        return new TraceDocument(
+                2,
+                "trace-test",
+                "Trace Test",
+                "",
+                Instant.parse("2026-05-29T10:00:00Z"),
+                Instant.parse("2026-05-29T10:00:00Z"),
+                List.of(
+                        new TraceNode("node-1", "line 1", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a"),
+                        new TraceNode("node-2", "line 2", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b"),
+                        new TraceNode("node-3", "line 3", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c")),
+                List.of());
     }
 
     private static final class FakeCaptureService implements TraceNodeCaptureService {
