@@ -153,6 +153,7 @@ public final class TraceDocumentEditor {
     }
 
     public TraceDocument setParent(TraceDocument document, String nodeId, String newParentId, Instant now) {
+        validateParentChange(document, nodeId, newParentId);
         List<TraceNode> updated = new ArrayList<>(document.nodes());
         for (int i = 0; i < updated.size(); i++) {
             if (updated.get(i).id().equals(nodeId)) {
@@ -173,6 +174,7 @@ public final class TraceDocumentEditor {
 
     public TraceDocument setParentAndIndex(TraceDocument document, String nodeId,
                                            String newParentId, int targetIndex, Instant now) {
+        validateParentChange(document, nodeId, newParentId);
         List<TraceNode> nodes = new ArrayList<>(document.nodes());
         for (int i = 0; i < nodes.size(); i++) {
             if (nodes.get(i).id().equals(nodeId)) {
@@ -218,5 +220,33 @@ public final class TraceDocumentEditor {
                 document.nodes(),
                 document.links(),
                 expandedNodeIds);
+    }
+
+    private static void validateParentChange(TraceDocument document, String nodeId, String newParentId) {
+        if (newParentId == null) {
+            return; // moving to root is always valid
+        }
+        // A node cannot be its own parent.
+        if (nodeId.equals(newParentId)) {
+            throw new IllegalArgumentException("A node cannot be its own parent");
+        }
+        // Walk up the parent chain from newParentId; if we reach nodeId, it's a cycle.
+        String parentId = newParentId;
+        java.util.Set<String> visited = new java.util.HashSet<>();
+        while (parentId != null) {
+            if (!visited.add(parentId)) {
+                throw new IllegalArgumentException("Circular parent reference detected");
+            }
+            if (parentId.equals(nodeId)) {
+                throw new IllegalArgumentException(
+                        "Cannot move a node under its own descendant — circular reference");
+            }
+            String currentId = parentId;
+            TraceNode parent = document.nodes().stream()
+                    .filter(n -> n.id().equals(currentId))
+                    .findFirst()
+                    .orElse(null);
+            parentId = parent == null ? null : parent.parentId();
+        }
     }
 }

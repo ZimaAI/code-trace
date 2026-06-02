@@ -6,6 +6,8 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
+import java.util.HashSet;
+import java.util.Set;
 import javax.swing.JComponent;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
@@ -57,46 +59,57 @@ public final class NodeTreeTransferHandler extends TransferHandler {
             return false;
         }
 
-        // Detect indent: compare drop X with target row X
-        Point dropPoint = support.getDropLocation().getDropPoint();
-        int row = tree.getRowForPath(targetPath);
-        Rectangle rowBounds = tree.getRowBounds(row);
-        if (rowBounds != null && dropPoint != null) {
-            int deltaX = dropPoint.x - rowBounds.x;
-            if (deltaX > INDENT_THRESHOLD && !isDescendantOf(targetNode, sourceNode)) {
-                // Reparent: make source a child of target.
-                // Defer UI refresh so Swing DnD cleanup finishes before model rebuild.
-                controller.setParent(sourceNode.id(), targetNode.id());
-                SwingUtilities.invokeLater(refreshUi);
-                return true;
+        try {
+            // Detect indent: compare drop X with target row X
+            Point dropPoint = support.getDropLocation().getDropPoint();
+            int row = tree.getRowForPath(targetPath);
+            Rectangle rowBounds = tree.getRowBounds(row);
+            if (rowBounds != null && dropPoint != null) {
+                int deltaX = dropPoint.x - rowBounds.x;
+                if (deltaX > INDENT_THRESHOLD
+                        && !sourceNode.id().equals(targetNode.id())
+                        && !isDescendantOf(targetNode, sourceNode, controller.state().currentDocument())) {
+                    // Reparent: make source a child of target.
+                    // Defer UI refresh so Swing DnD cleanup finishes before model rebuild.
+                    controller.setParent(sourceNode.id(), targetNode.id());
+                    SwingUtilities.invokeLater(refreshUi);
+                    return true;
+                }
             }
-        }
 
-        // Otherwise, reorder within same parent
-        String newParentId = targetNode.parentId();
-        int childIndex = dropLocation.getChildIndex();
-        if (childIndex < 0) {
-            // Dropped on the target node -> reorder after it within same parent
-            controller.setParent(sourceNode.id(), newParentId);
-        } else {
-            controller.setParentAndIndex(sourceNode.id(), newParentId, childIndex);
+            // Otherwise, reorder within same parent
+            String newParentId = targetNode.parentId();
+            // Guard: a node cannot be its own parent, and the move must not create a cycle.
+            if (sourceNode.id().equals(newParentId)
+                    || isDescendantOf(targetNode, sourceNode, controller.state().currentDocument())) {
+                return false;
+            }
+            int childIndex = dropLocation.getChildIndex();
+            if (childIndex < 0) {
+                // Dropped on the target node -> reorder after it within same parent
+                controller.setParent(sourceNode.id(), newParentId);
+            } else {
+                controller.setParentAndIndex(sourceNode.id(), newParentId, childIndex);
+            }
+        } catch (IllegalArgumentException ignored) {
+            return false;
         }
         SwingUtilities.invokeLater(refreshUi);
         return true;
     }
 
-    private boolean isDescendantOf(TraceNode ancestor, TraceNode node) {
-        String parentId = ancestor.parentId();
+    private static boolean isDescendantOf(TraceNode node, TraceNode potentialAncestor, TraceDocument doc) {
+        if (doc == null) return false;
+        Set<String> visited = new HashSet<>();
+        String parentId = node.parentId();
         while (parentId != null) {
-            if (parentId.equals(node.id())) return true;
-            TraceDocument doc = controller.state().currentDocument();
-            if (doc == null) break;
-            String finalParentId = parentId;
+            if (!visited.add(parentId)) return false; // safety: cycle detected in existing data
+            if (parentId.equals(potentialAncestor.id())) return true;
+            String currentId = parentId;
             TraceNode parent = doc.nodes().stream()
-                    .filter(n -> n.id().equals(finalParentId))
+                    .filter(n -> n.id().equals(currentId))
                     .findFirst().orElse(null);
-            if (parent == null) break;
-            parentId = parent.parentId();
+            parentId = parent == null ? null : parent.parentId();
         }
         return false;
     }
