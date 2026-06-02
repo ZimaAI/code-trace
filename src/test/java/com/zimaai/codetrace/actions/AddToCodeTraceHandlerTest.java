@@ -195,6 +195,37 @@ class AddToCodeTraceHandlerTest {
     }
 
     @Test
+    void insertsSourceAsSiblingAfterFocusedNodeInTree() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.createNewFile("tree-trace.json", "Tree");
+        controller.load("tree-trace.json");
+
+        // Set up: n1 (root), n2 (child of n1)
+        TraceNode n1 = new TraceNode("n1", "parent", "", "", "", 0, "", "", "");
+        TraceNode n2 = new TraceNode("n2", "child", "", "", "", 0, "", "", "", "n1", null);
+        controller.addNode(n1);
+        controller.addNode(n2);
+        controller.setFocusedNodeId("n2");
+
+        TraceNode source = new TraceNode(
+                "ignored", "new-sibling", "", "", "", 0, "", "", "Auth#new");
+        AddToCodeTraceHandler handler = new AddToCodeTraceHandler(
+                controller,
+                new FakeCaptureService(source, Optional.empty()),
+                new RecordingPrompts(false),
+                () -> {});
+
+        handler.handle(null, null, null);
+
+        // Source should be a sibling after n2 (same parentId = "n1")
+        String insertedId = controller.state().preferredSelectedNodeId();
+        List<TraceNode> nodes = controller.state().currentDocument().nodes();
+        TraceNode inserted = nodes.stream().filter(n -> n.id().equals(insertedId)).findFirst().orElseThrow();
+        assertEquals("n1", inserted.parentId()); // same parent as n2
+    }
+
+    @Test
     void appendsSourceToBottomWhenNothingIsFocused() {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
         storage.save("trace-3.json", documentWithThreeNodes());

@@ -298,6 +298,7 @@ public final class CodeTraceController {
 
     private TraceDocument insertOrReuseNodeAfter(TraceDocument document, TraceNode candidate, String afterNodeId, Instant now) {
         List<TraceNode> nodes = document.nodes();
+        // Check if candidate already exists
         for (int i = 0; i < nodes.size(); i++) {
             TraceNode existing = nodes.get(i);
             if (existing.displayName().equals(candidate.displayName())
@@ -306,13 +307,37 @@ public final class CodeTraceController {
                 if (afterNodeId != null) {
                     int afterIndex = indexOfNode(nodes, afterNodeId);
                     if (afterIndex >= 0) {
+                        String sameParent = nodes.get(afterIndex).parentId();
                         int targetIdx = afterIndex + 1;
-                        if (i != targetIdx) {
+                        boolean needsReparent = !Objects.equals(existing.parentId(), sameParent);
+                        if (i != targetIdx || needsReparent) {
+                            if (needsReparent) {
+                                // Different parent: reparent to sibling level
+                                int afterSiblingIdx = 0;
+                                for (int j = 0; j < afterIndex; j++) {
+                                    if (Objects.equals(nodes.get(j).parentId(), sameParent)) {
+                                        afterSiblingIdx++;
+                                    }
+                                }
+                                return editor.setParentAndIndex(document, existing.id(), sameParent, afterSiblingIdx + 1, now);
+                            }
                             return moveInternalToIndex(document, existing.id(), targetIdx, now);
                         }
                     }
                 }
                 return document;
+            }
+        }
+        // Find the parent of the focused node for same-level insertion
+        String parentId = null;
+        int insertIdx = nodes.size(); // default: append to end
+        if (afterNodeId != null) {
+            for (int i = 0; i < nodes.size(); i++) {
+                if (nodes.get(i).id().equals(afterNodeId)) {
+                    parentId = nodes.get(i).parentId();
+                    insertIdx = i + 1;
+                    break;
+                }
             }
         }
         TraceNode withId = new TraceNode(
@@ -324,13 +349,10 @@ public final class CodeTraceController {
                 candidate.line(),
                 candidate.language(),
                 candidate.note(),
-                candidate.navigationHint());
-        if (afterNodeId != null) {
-            int afterIndex = indexOfNode(nodes, afterNodeId);
-            int insertIndex = afterIndex >= 0 ? afterIndex + 1 : nodes.size();
-            return editor.insertNodeAt(document, withId, insertIndex, now);
-        }
-        return editor.addNode(document, withId, now);
+                candidate.navigationHint(),
+                parentId,
+                candidate.title());
+        return editor.insertNodeAt(document, withId, insertIdx, now);
     }
 
     private static TraceDocument moveInternalToIndex(TraceDocument document, String nodeId, int targetIndex, Instant now) {
