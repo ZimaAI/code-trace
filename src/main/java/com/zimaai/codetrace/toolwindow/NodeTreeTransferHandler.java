@@ -8,6 +8,7 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import javax.swing.JComponent;
 import javax.swing.JTree;
+import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
 import javax.swing.tree.TreePath;
 
@@ -56,11 +57,6 @@ public final class NodeTreeTransferHandler extends TransferHandler {
             return false;
         }
 
-        // Clear drop location BEFORE modifying the model to avoid stale path
-        // references in IntelliJ's CachingTreePath when Swing repaints the old
-        // drop line during cleanup after importData returns.
-        tree.setDropLocation(null);
-
         // Detect indent: compare drop X with target row X
         Point dropPoint = support.getDropLocation().getDropPoint();
         int row = tree.getRowForPath(targetPath);
@@ -68,9 +64,10 @@ public final class NodeTreeTransferHandler extends TransferHandler {
         if (rowBounds != null && dropPoint != null) {
             int deltaX = dropPoint.x - rowBounds.x;
             if (deltaX > INDENT_THRESHOLD && !isDescendantOf(targetNode, sourceNode)) {
-                // Reparent: make source a child of target
+                // Reparent: make source a child of target.
+                // Defer UI refresh so Swing DnD cleanup finishes before model rebuild.
                 controller.setParent(sourceNode.id(), targetNode.id());
-                refreshUi.run();
+                SwingUtilities.invokeLater(refreshUi);
                 return true;
             }
         }
@@ -84,7 +81,7 @@ public final class NodeTreeTransferHandler extends TransferHandler {
         } else {
             controller.setParentAndIndex(sourceNode.id(), newParentId, childIndex);
         }
-        refreshUi.run();
+        SwingUtilities.invokeLater(refreshUi);
         return true;
     }
 
