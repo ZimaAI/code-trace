@@ -2,6 +2,9 @@ package com.zimaai.codetrace.toolwindow;
 
 import com.intellij.ui.components.JBList;
 import com.zimaai.codetrace.model.TraceNode;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import javax.swing.JComponent;
 import javax.swing.JList;
 import javax.swing.TransferHandler;
 
@@ -12,6 +15,20 @@ public final class NodeListReorderTransferHandler extends TransferHandler {
     public NodeListReorderTransferHandler(CodeTraceController controller, Runnable refreshUi) {
         this.controller = controller;
         this.refreshUi = refreshUi;
+    }
+
+    @Override
+    public int getSourceActions(JComponent c) {
+        return MOVE;
+    }
+
+    @Override
+    protected Transferable createTransferable(JComponent c) {
+        JBList<?> list = (JBList<?>) c;
+        if (list.getSelectedValue() == null) {
+            return null;
+        }
+        return new StringSelection(list.getSelectedValue().toString());
     }
 
     @Override

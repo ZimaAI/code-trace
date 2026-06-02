@@ -104,6 +104,18 @@ class CodeTracePanelTest {
         assertTrue(editorPanel.nodeList().getTransferHandler() instanceof NodeListReorderTransferHandler);
     }
 
+    @Test
+    void preservesPreferredSelectedNodeIdAcrossExternalRefresh() throws Exception {
+        CodeTracePanel panel = panelFor(documentWithOneNode());
+        CodeTraceController controller = controller(panel);
+
+        controller.preferSelectedNode("node-1");
+        panel.refreshFromExternalAction();
+
+        assertNull(controller.state().preferredSelectedNodeId());
+        assertEquals("node-1", controller.focusedNodeId());
+    }
+
     private static CodeTraceController controller(CodeTracePanel panel) throws Exception {
         Field field = CodeTracePanel.class.getDeclaredField("controller");
         field.setAccessible(true);

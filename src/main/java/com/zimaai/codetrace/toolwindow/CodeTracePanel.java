@@ -68,7 +68,11 @@ public final class CodeTracePanel {
     }
 
     public void refreshFromExternalAction() {
+        String preferred = controller.state().preferredSelectedNodeId();
         controller.refreshCurrentFile();
+        if (preferred != null) {
+            controller.preferSelectedNode(preferred);
+        }
         rebuildView();
     }
 
