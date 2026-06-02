@@ -3,6 +3,7 @@ package com.zimaai.codetrace.toolwindow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceNode;
@@ -10,9 +11,11 @@ import com.zimaai.codetrace.storage.TraceJsonMapper;
 import com.zimaai.codetrace.storage.TraceStorageService;
 import java.awt.Component;
 import java.awt.Container;
+import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import javax.swing.DropMode;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
@@ -77,6 +80,40 @@ class CodeTracePanelTest {
                 Instant.parse("2026-05-29T10:00:00Z"),
                 List.of(new TraceNode("node-1", "single line", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a")),
                 List.of());
+    }
+
+    @Test
+    void syncsFocusedNodeIdWithSelectedNodeAndClearsWhenSelectionIsCleared() throws Exception {
+        CodeTracePanel panel = panelFor(documentWithOneNode());
+        CodeTraceController controller = controller(panel);
+        TraceEditorPanel editorPanel = editorPanel(panel);
+
+        editorPanel.nodeList().setSelectedIndex(0);
+        assertEquals("node-1", controller.focusedNodeId());
+
+        editorPanel.nodeList().clearSelection();
+        assertEquals(null, controller.focusedNodeId());
+    }
+
+    @Test
+    void installsDragAndDropSupportOnNodeList() throws Exception {
+        CodeTracePanel panel = panelFor(documentWithOneNode());
+        TraceEditorPanel editorPanel = editorPanel(panel);
+
+        assertEquals(DropMode.INSERT, editorPanel.nodeList().getDropMode());
+        assertTrue(editorPanel.nodeList().getTransferHandler() instanceof NodeListReorderTransferHandler);
+    }
+
+    private static CodeTraceController controller(CodeTracePanel panel) throws Exception {
+        Field field = CodeTracePanel.class.getDeclaredField("controller");
+        field.setAccessible(true);
+        return (CodeTraceController) field.get(panel);
+    }
+
+    private static TraceEditorPanel editorPanel(CodeTracePanel panel) throws Exception {
+        Field field = CodeTracePanel.class.getDeclaredField("editorPanel");
+        field.setAccessible(true);
+        return (TraceEditorPanel) field.get(panel);
     }
 
     private static JButton findNamedButton(Component component, String name) {

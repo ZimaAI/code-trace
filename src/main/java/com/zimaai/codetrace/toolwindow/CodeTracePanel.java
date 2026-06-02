@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.swing.DropMode;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
@@ -125,12 +126,21 @@ public final class CodeTracePanel {
             rebuildView();
         });
 
+        editorPanel.nodeList().setDragEnabled(true);
+        editorPanel.nodeList().setDropMode(DropMode.INSERT);
+        editorPanel.nodeList().setTransferHandler(new NodeListReorderTransferHandler(controller, this::rebuildView));
+
         editorPanel.nodeList().addListSelectionListener(event -> {
             if (event.getValueIsAdjusting() || syncingNodeSelection) {
                 return;
             }
             TraceNode selected = editorPanel.nodeList().getSelectedValue();
             selectedNodeId = selected == null ? null : selected.id();
+            if (selectedNodeId == null) {
+                controller.clearFocusedNodeId();
+            } else {
+                controller.setFocusedNodeId(selectedNodeId);
+            }
             syncSelectedNodeNote();
             refreshButtons();
         });
@@ -369,9 +379,10 @@ public final class CodeTracePanel {
         if (selectedNodeId == null) {
             return;
         }
-        String deletingNodeId = selectedNodeId;
+        String nodeId = selectedNodeId;
         selectedNodeId = null;
-        controller.deleteNodeOrPair(deletingNodeId);
+        controller.clearFocusedNodeId();
+        controller.deleteNodeOrPair(nodeId);
         rebuildView();
     }
 
@@ -647,8 +658,11 @@ public final class CodeTracePanel {
         selectedNodeId = NodeSelectionPolicy.resolveSelectedNodeId(nodes, selectedNodeId, preferredSelectedNodeId);
         int selectedIndex = NodeSelectionPolicy.indexOfNode(nodes, selectedNodeId);
         if (selectedIndex >= 0) {
+            controller.setFocusedNodeId(selectedNodeId);
             editorPanel.nodeList().setSelectedIndex(selectedIndex);
         } else {
+            selectedNodeId = null;
+            controller.clearFocusedNodeId();
             editorPanel.nodeList().clearSelection();
         }
     }
