@@ -66,6 +66,21 @@ public final class TraceDocumentEditor {
                 document.links());
     }
 
+    public TraceDocument insertNodeAt(TraceDocument document, TraceNode node, int index, Instant now) {
+        List<TraceNode> nodes = new ArrayList<>(document.nodes());
+        int boundedIndex = Math.max(0, Math.min(index, nodes.size()));
+        nodes.add(boundedIndex, node);
+        return new TraceDocument(
+                2,
+                document.id(),
+                document.name(),
+                document.description(),
+                document.createdAt(),
+                now,
+                List.copyOf(nodes),
+                document.links());
+    }
+
     public TraceDocument updateNode(TraceDocument document, TraceNode replacement, Instant now) {
         List<TraceNode> nodes = new ArrayList<>(document.nodes());
         for (int i = 0; i < nodes.size(); i++) {
