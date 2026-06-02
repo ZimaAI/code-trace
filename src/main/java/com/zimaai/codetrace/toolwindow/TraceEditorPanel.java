@@ -48,6 +48,7 @@ public final class TraceEditorPanel {
         nodeTree.setRootVisible(false);
         nodeTree.setShowsRootHandles(true);
         nodeTree.setEditable(false);
+        nodeTree.setToggleClickCount(0);
 
         JPanel traceNotePanel = new JPanel(new BorderLayout());
         traceNotePanel.setBorder(JBUI.Borders.empty(0, 0, 6, 0));
