@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -385,11 +386,15 @@ public final class CodeTraceController {
 
     private static TraceDocument deleteInternal(TraceDocument document, String nodeId, Instant now) {
         List<String> affectedIds = linkedNodeIds(document.links(), nodeId);
+        // Cascade: collect all descendant IDs
+        Set<String> allRemoved = new HashSet<>(affectedIds);
+        collectDescendantIds(document.nodes(), allRemoved);
         List<TraceNode> nodes = document.nodes().stream()
-                .filter(node -> !affectedIds.contains(node.id()))
+                .filter(node -> !allRemoved.contains(node.id()))
                 .toList();
         List<TraceLink> links = document.links().stream()
-                .filter(link -> !affectedIds.contains(link.sourceNodeId()) && !affectedIds.contains(link.targetNodeId()))
+                .filter(link -> !allRemoved.contains(link.sourceNodeId())
+                        && !allRemoved.contains(link.targetNodeId()))
                 .toList();
         return new TraceDocument(
                 3,
@@ -401,6 +406,18 @@ public final class CodeTraceController {
                 nodes,
                 links,
                 document.expandedNodeIds());
+    }
+
+    private static void collectDescendantIds(List<TraceNode> nodes, Set<String> result) {
+        Set<String> current = new HashSet<>(result);
+        for (TraceNode node : nodes) {
+            if (node.parentId() != null && current.contains(node.parentId())) {
+                result.add(node.id());
+            }
+        }
+        if (result.size() > current.size()) {
+            collectDescendantIds(nodes, result);
+        }
     }
 
     private static List<String> linkedNodeIds(List<TraceLink> links, String nodeId) {

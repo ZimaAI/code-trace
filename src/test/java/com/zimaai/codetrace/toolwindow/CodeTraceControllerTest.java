@@ -191,6 +191,32 @@ class CodeTraceControllerTest {
                 java.util.Set.of());
     }
 
+    @Test
+    void cascadesDeleteToAllDescendants() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("tree.json", documentWithNestedNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("tree.json");
+
+        controller.deleteNodeOrPair("n1");
+        // n1, n2 (child of n1), n3 (child of n2) should all be deleted
+        List<String> remaining = controller.state().currentDocument().nodes().stream()
+                .map(TraceNode::id).toList();
+        assertEquals(List.of(), remaining);
+    }
+
+    private static TraceDocument documentWithNestedNodes() {
+        return new TraceDocument(
+                3, "tree-1", "Tree", "",
+                Instant.parse("2026-06-02T10:00:00Z"),
+                Instant.parse("2026-06-02T10:00:00Z"),
+                List.of(
+                        new TraceNode("n1", "root", "", "", "", 0, "", "", ""),
+                        new TraceNode("n2", "child-a", "", "", "", 0, "", "", "", "n1", (String) null),
+                        new TraceNode("n3", "child-b", "", "", "", 0, "", "", "", "n2", (String) null)),
+                List.of(), java.util.Set.of());
+    }
+
     private static TraceDocument documentWithThreeNodes() {
         return new TraceDocument(
                 3,
