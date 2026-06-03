@@ -43,6 +43,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
+// Disable searchable options build — only needed for JetBrains Marketplace indexing.
+// Fails on non-English Windows due to IntelliJ Platform locale bug (TraverseUIStarter.kt:158).
+tasks.buildSearchableOptions {
+    enabled = false
+}
+
 configurations.configureEach {
     if (name == "intellijPlatformDependency") {
         isCanBeConsumed = false
