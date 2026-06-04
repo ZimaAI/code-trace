@@ -57,6 +57,57 @@ class NodeTableModelTest {
         assertTrue(childrenIds.isEmpty());
     }
 
+    @Test
+    void testGetDescendantIds_ReturnsAllDescendants() {
+        List<TraceNode> nodes = List.of(
+            createNode("1", "Root", null),
+            createNode("2", "Child", "1"),
+            createNode("3", "GrandChild", "2")
+        );
+        NodeTableModel model = new NodeTableModel(nodes, Map.of(), List.of());
+
+        List<String> descendants = model.getDescendantIds("1");
+        assertEquals(2, descendants.size());
+        assertTrue(descendants.contains("2"));
+        assertTrue(descendants.contains("3"));
+    }
+
+    @Test
+    void testGetDescendantIds_NodeWithoutDescendants_ReturnsEmptyList() {
+        List<TraceNode> nodes = List.of(
+            createNode("1", "Root", null),
+            createNode("2", "Child", "1")
+        );
+        NodeTableModel model = new NodeTableModel(nodes, Map.of(), List.of());
+
+        List<String> descendants = model.getDescendantIds("2");
+        assertTrue(descendants.isEmpty());
+    }
+
+    @Test
+    void testGetNodeIndex_ReturnsCorrectIndex() {
+        List<TraceNode> nodes = List.of(
+            createNode("1", "First", null),
+            createNode("2", "Second", null),
+            createNode("3", "Third", null)
+        );
+        NodeTableModel model = new NodeTableModel(nodes, Map.of(), List.of());
+
+        assertEquals(0, model.getNodeIndex("1"));
+        assertEquals(1, model.getNodeIndex("2"));
+        assertEquals(2, model.getNodeIndex("3"));
+    }
+
+    @Test
+    void testGetNodeIndex_NonExistentNode_ReturnsMinusOne() {
+        List<TraceNode> nodes = List.of(
+            createNode("1", "Root", null)
+        );
+        NodeTableModel model = new NodeTableModel(nodes, Map.of(), List.of());
+
+        assertEquals(-1, model.getNodeIndex("nonexistent"));
+    }
+
     private static TraceNode createNode(String id, String displayName, String parentId) {
         return new TraceNode(
                 id, displayName, displayName + "#qualified",

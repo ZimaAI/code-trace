@@ -5,6 +5,7 @@ import com.zimaai.codetrace.model.TraceNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.swing.table.AbstractTableModel;
 
 public final class NodeTableModel extends AbstractTableModel {
@@ -76,6 +77,7 @@ public final class NodeTableModel extends AbstractTableModel {
      * 判断指定节点是否有子节点
      */
     public boolean hasChildren(String nodeId) {
+        Objects.requireNonNull(nodeId, "nodeId");
         return nodes.stream()
             .anyMatch(node -> nodeId.equals(node.parentId()));
     }
@@ -84,6 +86,7 @@ public final class NodeTableModel extends AbstractTableModel {
      * 获取指定节点的所有直接子节点ID列表
      */
     public List<String> getChildrenIds(String parentId) {
+        Objects.requireNonNull(parentId, "parentId");
         return nodes.stream()
             .filter(node -> parentId.equals(node.parentId()))
             .map(TraceNode::id)
@@ -94,6 +97,7 @@ public final class NodeTableModel extends AbstractTableModel {
      * 获取指定节点的所有子孙节点ID（递归）
      */
     public List<String> getDescendantIds(String nodeId) {
+        Objects.requireNonNull(nodeId, "nodeId");
         List<String> descendants = new ArrayList<>();
         collectDescendantIds(nodeId, descendants);
         return descendants;
@@ -111,6 +115,7 @@ public final class NodeTableModel extends AbstractTableModel {
      * 获取节点在列表中的索引
      */
     public int getNodeIndex(String nodeId) {
+        Objects.requireNonNull(nodeId, "nodeId");
         for (int i = 0; i < nodes.size(); i++) {
             if (nodes.get(i).id().equals(nodeId)) {
                 return i;
