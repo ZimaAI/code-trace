@@ -7,6 +7,8 @@ import com.zimaai.codetrace.model.TraceNode;
 import java.awt.Color;
 import java.awt.Component;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
@@ -77,8 +79,11 @@ public final class LinkedNodeTreeCellRenderer extends DefaultTreeCellRenderer {
                         BorderFactory.createEmptyBorder(3, 6, 3, 4)));
             } else if (document != null) {
                 boolean roleApplied = false;
+                Set<String> nodeIds = document.nodes().stream()
+                        .map(TraceNode::id)
+                        .collect(Collectors.toSet());
                 for (TraceLink link : document.links()) {
-                    if (!TraceDocumentEditor.isLinkValid(link, document)) {
+                    if (!TraceDocumentEditor.isLinkValid(link, nodeIds)) {
                         continue;
                     }
                     if (node.id().equals(link.sourceNodeId())) {

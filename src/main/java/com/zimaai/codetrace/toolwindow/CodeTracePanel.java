@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.swing.DropMode;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -708,10 +709,13 @@ public final class CodeTracePanel {
     private LinkedNodes findAllLinkedNodes() {
         List<TraceLink> links = findAllLinksForSelectedNode();
         TraceDocument document = controller.state().currentDocument();
+        Set<String> nodeIds = document != null
+                ? document.nodes().stream().map(TraceNode::id).collect(Collectors.toSet())
+                : Set.of();
         List<TraceNode> sources = new ArrayList<>();
         List<TraceNode> targets = new ArrayList<>();
         for (TraceLink link : links) {
-            if (document != null && !TraceDocumentEditor.isLinkValid(link, document)) {
+            if (document != null && !TraceDocumentEditor.isLinkValid(link, nodeIds)) {
                 continue;
             }
             if (selectedNodeId.equals(link.targetNodeId())) {
@@ -735,8 +739,11 @@ public final class CodeTracePanel {
             return false;
         }
         TraceDocument document = controller.state().currentDocument();
+        Set<String> nodeIds = document.nodes().stream()
+                .map(TraceNode::id)
+                .collect(Collectors.toSet());
         return document.links().stream()
-                .anyMatch(link -> TraceDocumentEditor.isLinkValid(link, document)
+                .anyMatch(link -> TraceDocumentEditor.isLinkValid(link, nodeIds)
                         && (selectedNodeId.equals(link.sourceNodeId())
                                 || selectedNodeId.equals(link.targetNodeId())));
     }

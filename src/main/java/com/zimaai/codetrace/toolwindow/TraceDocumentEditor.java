@@ -110,6 +110,14 @@ public final class TraceDocumentEditor {
     }
 
     /**
+     * Returns true if both endpoints of the link exist in the given node-id set.
+     * Prefer this overload in loops to avoid rebuilding the set on every call.
+     */
+    public static boolean isLinkValid(TraceLink link, Set<String> nodeIds) {
+        return nodeIds.contains(link.sourceNodeId()) && nodeIds.contains(link.targetNodeId());
+    }
+
+    /**
      * Returns true if both endpoints of the link exist in the document's node set.
      * A "dangling" link references a node that has been deleted.
      */
@@ -117,7 +125,7 @@ public final class TraceDocumentEditor {
         Set<String> nodeIds = doc.nodes().stream()
                 .map(TraceNode::id)
                 .collect(Collectors.toSet());
-        return nodeIds.contains(link.sourceNodeId()) && nodeIds.contains(link.targetNodeId());
+        return isLinkValid(link, nodeIds);
     }
 
     public TraceDocument link(TraceDocument document, String sourceNodeId, String targetNodeId, TraceLinkKind kind, Instant now) {
@@ -126,8 +134,11 @@ public final class TraceDocumentEditor {
         if (sourceNodeId.equals(targetNodeId)) {
             throw new IllegalArgumentException("Cannot link a node to itself");
         }
+        Set<String> nodeIds = document.nodes().stream()
+                .map(TraceNode::id)
+                .collect(Collectors.toSet());
         for (TraceLink link : document.links()) {
-            if (!isLinkValid(link, document)) {
+            if (!isLinkValid(link, nodeIds)) {
                 continue; // skip dangling link that references a deleted node
             }
             if (link.sourceNodeId().equals(sourceNodeId)
