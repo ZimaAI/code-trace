@@ -37,6 +37,8 @@ public final class TraceEditorPanel {
     private final JButton linkToHereButton = new JButton("Link To Here", AllIcons.General.LinkDropTriangle);
     private final JButton unlinkButton = new JButton("Unlink", AllIcons.Actions.DeleteTag);
     private final JButton goToLinkedButton = new JButton("Go To Linked", AllIcons.Actions.Find);
+    private final JButton expandAllButton = new JButton("Expand All", AllIcons.General.ArrowDown);
+    private final JButton collapseAllButton = new JButton("Collapse All", AllIcons.General.ArrowRight);
     private final JLabel linkStatus = new JLabel("Link source: none");
     private final JPanel nodeToolbar = new JPanel(new WrapLayout(WrapLayout.LEFT, 4, 4));
     private final JPanel root = new JPanel(new BorderLayout());
@@ -105,6 +107,10 @@ public final class TraceEditorPanel {
         nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
         // Row 1 continued: Navigation
         nodeToolbar.add(goToLinkedButton);
+        nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
+        // Row 1 continued: Expand/Collapse All
+        nodeToolbar.add(expandAllButton);
+        nodeToolbar.add(collapseAllButton);
     }
 
     private void addTooltips() {
@@ -118,6 +124,8 @@ public final class TraceEditorPanel {
         goToLinkedButton.setToolTipText("Navigate to linked nodes. Click to jump if only one link exists, or show a menu for multiple links.");
         saveTraceNoteButton.setToolTipText("Save the trace-level description");
         saveNodeNoteButton.setToolTipText("Save the note for the selected node");
+        expandAllButton.setToolTipText("Expand All parent nodes");
+        collapseAllButton.setToolTipText("Collapse All parent nodes");
     }
 
     private static void configureTextArea(JBTextArea area) {
@@ -202,6 +210,14 @@ public final class TraceEditorPanel {
 
     JButton goToLinkedButton() {
         return goToLinkedButton;
+    }
+
+    public JButton expandAllButton() {
+        return expandAllButton;
+    }
+
+    public JButton collapseAllButton() {
+        return collapseAllButton;
     }
 
     /**

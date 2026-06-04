@@ -233,6 +233,16 @@ public final class CodeTracePanel {
             controller.toggleNodeExpand(nodeId, !isCurrentlyExpanded);
             rebuildView();
         });
+
+        // 展开/折叠全部按钮
+        editorPanel.expandAllButton().addActionListener(e -> {
+            controller.expandAllNodes();
+            rebuildView();
+        });
+        editorPanel.collapseAllButton().addActionListener(e -> {
+            controller.collapseAllNodes();
+            rebuildView();
+        });
     }
 
     private void addButton(JPanel toolbar, String label, Runnable action) {

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.swing.JButton;
+import javax.swing.JPanel;
 import org.junit.jupiter.api.Test;
 
 class TraceEditorPanelTest {
@@ -58,6 +59,8 @@ class TraceEditorPanelTest {
         assertNotNull(panel.linkToHereButton().getIcon(), "Link To Here button should have an icon");
         assertNotNull(panel.unlinkButton().getIcon(), "Unlink button should have an icon");
         assertNotNull(panel.goToLinkedButton().getIcon(), "Go To Linked button should have an icon");
+        assertNotNull(panel.expandAllButton().getIcon(), "Expand All button should have an icon");
+        assertNotNull(panel.collapseAllButton().getIcon(), "Collapse All button should have an icon");
         assertNotNull(panel.saveTraceNoteButton().getIcon(), "Save Trace Note button should have an icon");
         assertNotNull(panel.saveNodeNoteButton().getIcon(), "Save Node Note button should have an icon");
     }
@@ -74,6 +77,8 @@ class TraceEditorPanelTest {
         assertNotNull(panel.linkToHereButton().getToolTipText(), "Link To Here button should have a tooltip");
         assertNotNull(panel.unlinkButton().getToolTipText(), "Unlink button should have a tooltip");
         assertNotNull(panel.goToLinkedButton().getToolTipText(), "Go To Linked button should have a tooltip");
+        assertNotNull(panel.expandAllButton().getToolTipText(), "Expand All button should have a tooltip");
+        assertNotNull(panel.collapseAllButton().getToolTipText(), "Collapse All button should have a tooltip");
         assertNotNull(panel.saveTraceNoteButton().getToolTipText(), "Save Trace Note button should have a tooltip");
         assertNotNull(panel.saveNodeNoteButton().getToolTipText(), "Save Node Note button should have a tooltip");
     }
@@ -83,6 +88,32 @@ class TraceEditorPanelTest {
         TraceEditorPanel panel = new TraceEditorPanel();
 
         assertNotNull(panel.nodeTable());
+    }
+
+    @Test
+    void testToolbarContainsExpandCollapseButtons() {
+        TraceEditorPanel panel = new TraceEditorPanel();
+
+        // Check toolbar contains expand/collapse buttons
+        JPanel toolbar = panel.nodeToolbar();
+        boolean hasExpandAllButton = false;
+        boolean hasCollapseAllButton = false;
+
+        for (java.awt.Component comp : toolbar.getComponents()) {
+            if (comp instanceof JButton button) {
+                if (button.getToolTipText() != null) {
+                    if (button.getToolTipText().contains("Expand All")) {
+                        hasExpandAllButton = true;
+                    }
+                    if (button.getToolTipText().contains("Collapse All")) {
+                        hasCollapseAllButton = true;
+                    }
+                }
+            }
+        }
+
+        assertTrue(hasExpandAllButton, "Toolbar should contain an Expand All button");
+        assertTrue(hasCollapseAllButton, "Toolbar should contain a Collapse All button");
     }
 
     @Test
