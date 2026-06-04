@@ -42,6 +42,7 @@ public final class TraceEditorPanel {
     private final JPanel root = new JPanel(new BorderLayout());
     private FilteredNodeTableModel filteredModel;
     private CollapseIndicatorRenderer collapseRenderer;
+    private java.awt.event.MouseListener collapseMouseListener;
     private final java.util.List<CollapseExpandListener> collapseExpandListeners = new java.util.ArrayList<>();
 
     public TraceEditorPanel() {
@@ -214,12 +215,16 @@ public final class TraceEditorPanel {
         nodeTable.setModel(filteredModel);
 
         // 创建并设置渲染器
-        collapseRenderer = new CollapseIndicatorRenderer(filteredModel,
-            nodeId -> document.expandedNodeIds().contains(nodeId));
+        collapseRenderer = new CollapseIndicatorRenderer(filteredModel);
         nodeTable.getColumnModel().getColumn(0).setCellRenderer(collapseRenderer);
 
-        // 添加点击监听器处理折叠/展开
-        nodeTable.addMouseListener(new java.awt.event.MouseAdapter() {
+        // 移除旧的监听器
+        if (collapseMouseListener != null) {
+            nodeTable.removeMouseListener(collapseMouseListener);
+        }
+
+        // 添加新的点击监听器处理折叠/展开
+        collapseMouseListener = new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 int row = nodeTable.rowAtPoint(e.getPoint());
@@ -235,7 +240,8 @@ public final class TraceEditorPanel {
                     }
                 }
             }
-        });
+        };
+        nodeTable.addMouseListener(collapseMouseListener);
     }
 
     /**
@@ -244,13 +250,7 @@ public final class TraceEditorPanel {
     public void updateDocument(TraceDocument document) {
         if (filteredModel != null) {
             filteredModel.setDocument(document);
-
-            // 更新渲染器的展开状态判断函数
-            if (collapseRenderer != null) {
-                collapseRenderer = new CollapseIndicatorRenderer(filteredModel,
-                    nodeId -> document.expandedNodeIds().contains(nodeId));
-                nodeTable.getColumnModel().getColumn(0).setCellRenderer(collapseRenderer);
-            }
+            // 渲染器会通过 filteredModel.getDocument() 获取最新状态
         }
     }
 

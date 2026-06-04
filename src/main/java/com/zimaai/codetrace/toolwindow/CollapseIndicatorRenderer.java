@@ -6,8 +6,6 @@ import com.zimaai.codetrace.model.TraceNode;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
-import java.util.function.Function;
-
 /**
  * 折叠指示器渲染器，在编号列显示展开/折叠图标和树形连接线
  */
@@ -15,12 +13,9 @@ public class CollapseIndicatorRenderer extends DefaultTableCellRenderer {
     private static final int INDENT_PER_LEVEL = 20;
 
     private final FilteredNodeTableModel filteredModel;
-    private final Function<String, Boolean> isExpandedFunction;
 
-    public CollapseIndicatorRenderer(FilteredNodeTableModel filteredModel,
-                                    Function<String, Boolean> isExpandedFunction) {
+    public CollapseIndicatorRenderer(FilteredNodeTableModel filteredModel) {
         this.filteredModel = filteredModel;
-        this.isExpandedFunction = isExpandedFunction;
     }
 
     @Override
@@ -32,7 +27,7 @@ public class CollapseIndicatorRenderer extends DefaultTableCellRenderer {
         if (c instanceof JLabel label && row >= 0 && row < filteredModel.getRowCount()) {
             TraceNode node = filteredModel.getNodeAt(row);
             boolean hasChildren = filteredModel.getSourceModel().hasChildren(node.id());
-            boolean isExpanded = isExpandedFunction.apply(node.id());
+            boolean isExpanded = filteredModel.getDocument().expandedNodeIds().contains(node.id());
             int depth = filteredModel.getNodeDepth(node);
             boolean isLastChild = filteredModel.isLastChild(node);
 
