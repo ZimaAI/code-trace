@@ -109,7 +109,7 @@ public final class MultiSelectTransferHandler extends TransferHandler {
                 if (deltaX > threshold) {
                     // 在节点名称列右半部分：成为目标节点的子节点
                     newParentId = targetNode.id();
-                    insertIndex = 0; // 插入为第一个子节点
+                    insertIndex = -1; // 成为最后一个子节点
                 } else {
                     // 在节点名称列左半部分：成为目标节点的兄弟节点
                     newParentId = targetNode.parentId();

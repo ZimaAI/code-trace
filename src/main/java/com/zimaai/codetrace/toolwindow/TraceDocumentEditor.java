@@ -194,26 +194,59 @@ public final class TraceDocumentEditor {
         for (int i = 0; i < nodes.size(); i++) {
             if (nodes.get(i).id().equals(nodeId)) {
                 TraceNode node = nodes.get(i);
+                String oldParentId = node.parentId();
+
+                // Compute the source node's sibling index before removal, so we can
+                // adjust targetIndex when the caller's index is based on the pre-removal list.
+                int sourceSiblingIdx = -1;
+                if (Objects.equals(oldParentId, newParentId)) {
+                    sourceSiblingIdx = 0;
+                    for (int k = 0; k < i; k++) {
+                        if (Objects.equals(nodes.get(k).parentId(), oldParentId)) {
+                            sourceSiblingIdx++;
+                        }
+                    }
+                }
+
                 TraceNode updated = new TraceNode(
                         node.id(), node.displayName(), node.qualifiedName(), node.signature(),
                         node.filePath(), node.line(), node.language(), node.note(),
                         node.navigationHint(), newParentId, node.title());
                 nodes.remove(i);
-                int insertIdx = 0;
-                int siblingsSeen = 0;
-                for (int j = 0; j < nodes.size(); j++) {
-                    if (Objects.equals(nodes.get(j).parentId(), newParentId)) {
-                        if (siblingsSeen == targetIndex) {
-                            insertIdx = j;
+
+                if (targetIndex == -1) {
+                    // Insert after the parent node and all its existing children
+                    // (whichever comes last in the flat list).
+                    int insertIdx = nodes.size();
+                    for (int j = nodes.size() - 1; j >= 0; j--) {
+                        TraceNode n = nodes.get(j);
+                        if (Objects.equals(n.parentId(), newParentId) || n.id().equals(newParentId)) {
+                            insertIdx = j + 1;
                             break;
                         }
-                        siblingsSeen++;
                     }
+                    nodes.add(insertIdx, updated);
+                } else {
+                    // Adjust targetIndex if the source was a sibling that preceded the
+                    // target in the flat list — removal shifts sibling indices down by 1.
+                    int adjusted = targetIndex;
+                    if (sourceSiblingIdx >= 0 && sourceSiblingIdx < targetIndex) {
+                        adjusted--;
+                    }
+                    // Find the adjusted-th sibling and insert before it.
+                    int insertIdx = nodes.size(); // default: append at end
+                    int siblingsSeen = 0;
+                    for (int j = 0; j < nodes.size(); j++) {
+                        if (Objects.equals(nodes.get(j).parentId(), newParentId)) {
+                            if (siblingsSeen == adjusted) {
+                                insertIdx = j;
+                                break;
+                            }
+                            siblingsSeen++;
+                        }
+                    }
+                    nodes.add(insertIdx, updated);
                 }
-                if (siblingsSeen <= targetIndex) {
-                    insertIdx = nodes.size();
-                }
-                nodes.add(insertIdx, updated);
                 break;
             }
         }
