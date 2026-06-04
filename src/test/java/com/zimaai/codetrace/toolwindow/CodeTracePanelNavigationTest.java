@@ -57,7 +57,7 @@ class CodeTracePanelNavigationTest {
         CodeTracePanel missingTargetPanel = panelFor(documentWithMissingTarget(), navigated);
 
         missingTargetPanel.editorPanel().nodeTree().setSelectionRow(0);
-        assertTrue(missingTargetPanel.editorPanel().goToLinkedButton().isEnabled());
+        assertFalse(missingTargetPanel.editorPanel().goToLinkedButton().isEnabled());
 
         CodeTracePanel unlinkPanel = panelFor(documentWithLinkedAndUnlinkedNodes(), new AtomicReference<>());
         unlinkPanel.editorPanel().nodeTree().setSelectionRow(0);

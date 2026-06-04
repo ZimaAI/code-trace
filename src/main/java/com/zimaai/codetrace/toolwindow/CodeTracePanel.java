@@ -731,8 +731,15 @@ public final class CodeTracePanel {
             return false;
         }
         return controller.state().currentDocument().links().stream()
-                .anyMatch(link -> selectedNodeId.equals(link.sourceNodeId())
-                        || selectedNodeId.equals(link.targetNodeId()));
+                .anyMatch(link -> {
+                    if (selectedNodeId.equals(link.sourceNodeId())) {
+                        return findNodeById(link.targetNodeId()) != null;
+                    }
+                    if (selectedNodeId.equals(link.targetNodeId())) {
+                        return findNodeById(link.sourceNodeId()) != null;
+                    }
+                    return false;
+                });
     }
 
     private TraceNode findNodeById(String nodeId) {
