@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.swing.DropMode;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
@@ -24,10 +24,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
-import javax.swing.JTree;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.tree.TreePath;
 
 public final class CodeTracePanel {
     private static final List<String> TOP_TOOLBAR_BUTTON_LABELS = List.of("Refresh", "Toggle Files");
@@ -51,11 +49,6 @@ public final class CodeTracePanel {
 
     public CodeTracePanel(CodeTraceController controller) {
         this.controller = controller;
-        editorPanel.nodeTree().setCellRenderer(
-                new LinkedNodeTreeCellRenderer(
-                        () -> controller.state().currentDocument(),
-                        () -> controller.state().focusedNodeId(),
-                        () -> controller.state().pendingLinkSourceId()));
         configureLeftPaneActions();
         configureLayout();
         wireSelection();
@@ -139,51 +132,41 @@ public final class CodeTracePanel {
             rebuildView();
         });
 
-        editorPanel.nodeTree().setDragEnabled(true);
-        editorPanel.nodeTree().setDropMode(DropMode.ON_OR_INSERT);
+        editorPanel.nodeTable().setDragEnabled(true);
+        editorPanel.nodeTable().setDropMode(javax.swing.DropMode.INSERT_ROWS);
+        editorPanel.nodeTable().setTransferHandler(
+                new MultiSelectTransferHandler(controller, this::rebuildView));
 
-        editorPanel.nodeTree().setTransferHandler(
-                new NodeTreeTransferHandler(controller, this::rebuildView));
-
-        editorPanel.nodeTree().addTreeSelectionListener(event -> {
-            if (syncingNodeSelection) return;
-            TreePath path = editorPanel.nodeTree().getSelectionPath();
-            TraceNode selected = null;
-            if (path != null && path.getLastPathComponent() instanceof TraceNode node) {
-                selected = node;
-            }
-            selectedNodeId = selected == null ? null : selected.id();
-            if (selectedNodeId == null) {
-                controller.clearFocusedNodeId();
-            } else {
-                controller.setFocusedNodeId(selectedNodeId);
-            }
-            syncSelectedNodeNote();
-            refreshButtons();
-        });
-
-        // Expand/collapse persistence
-        editorPanel.nodeTree().addTreeExpansionListener(new javax.swing.event.TreeExpansionListener() {
-            @Override
-            public void treeExpanded(javax.swing.event.TreeExpansionEvent event) {
-                persistExpandState();
-            }
-            @Override
-            public void treeCollapsed(javax.swing.event.TreeExpansionEvent event) {
-                persistExpandState();
+        editorPanel.nodeTable().getSelectionModel().addListSelectionListener(event -> {
+            if (event.getValueIsAdjusting()) return;
+            syncingNodeSelection = true;
+            try {
+                int selectedRow = editorPanel.nodeTable().getSelectedRow();
+                if (selectedRow < 0) {
+                    selectedNodeId = null;
+                    controller.clearFocusedNodeId();
+                } else {
+                    NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
+                    TraceNode selected = model.getNodeAt(selectedRow);
+                    selectedNodeId = selected.id();
+                    controller.setFocusedNodeId(selectedNodeId);
+                }
+                syncSelectedNodeNote();
+                refreshButtons();
+            } finally {
+                syncingNodeSelection = false;
             }
         });
 
         // Double-click navigation
-        editorPanel.nodeTree().addMouseListener(new java.awt.event.MouseAdapter() {
+        editorPanel.nodeTable().addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent event) {
                 if (event.getClickCount() == 2) {
-                    TreePath path = editorPanel.nodeTree().getPathForLocation(event.getX(), event.getY());
-                    if (path == null) {
-                        path = editorPanel.nodeTree().getSelectionPath();
-                    }
-                    if (path != null && path.getLastPathComponent() instanceof TraceNode node) {
+                    int row = editorPanel.nodeTable().rowAtPoint(event.getPoint());
+                    if (row >= 0) {
+                        NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
+                        TraceNode node = model.getNodeAt(row);
                         controller.navigateToNode(node);
                     }
                 }
@@ -494,55 +477,19 @@ public final class CodeTracePanel {
 
     private void selectAndNavigateToNode(TraceNode node) {
         controller.navigateToNode(node);
-        JTree tree = editorPanel.nodeTree();
-        TraceTreeModel model = (TraceTreeModel) tree.getModel();
-        TreePath rootPath = new TreePath(model.getRoot());
-        TreePath nodePath = findPathForNode(model, rootPath, node);
-        if (nodePath != null) {
-            tree.setSelectionPath(nodePath);
-            tree.scrollPathToVisible(nodePath);
-        }
-    }
-
-    private TreePath findPathForNode(TraceTreeModel model, TreePath parentPath, TraceNode target) {
-        Object parent = parentPath.getLastPathComponent();
-        for (int i = 0; i < model.getChildCount(parent); i++) {
-            TraceNode child = (TraceNode) model.getChild(parent, i);
-            TreePath childPath = parentPath.pathByAddingChild(child);
-            if (child.id().equals(target.id())) return childPath;
-            TreePath found = findPathForNode(model, childPath, target);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    private void persistExpandState() {
-        TraceDocument doc = controller.state().currentDocument();
-        if (doc == null) return;
-        JTree tree = editorPanel.nodeTree();
-        Set<String> expanded = new HashSet<>();
-        for (int i = 0; i < tree.getRowCount(); i++) {
-            TreePath path = tree.getPathForRow(i);
-            if (tree.isExpanded(path) && path.getLastPathComponent() instanceof TraceNode node) {
-                expanded.add(node.id());
-            }
-        }
-        controller.setExpandedNodes(expanded);
-    }
-
-    private void restoreExpandState(TraceDocument document) {
-        if (document == null || document.expandedNodeIds().isEmpty()) return;
-        JTree tree = editorPanel.nodeTree();
-        TraceTreeModel model = (TraceTreeModel) tree.getModel();
+        // 在表格中查找并选中节点
+        NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
         if (model == null) return;
-        for (int i = 0; i < tree.getRowCount(); i++) {
-            TreePath path = tree.getPathForRow(i);
-            if (path.getLastPathComponent() instanceof TraceNode node
-                    && document.expandedNodeIds().contains(node.id())) {
-                tree.expandPath(path);
+        for (int i = 0; i < model.getRowCount(); i++) {
+            TraceNode n = model.getNodeAt(i);
+            if (n.id().equals(node.id())) {
+                editorPanel.nodeTable().setRowSelectionInterval(i, i);
+                editorPanel.nodeTable().scrollRectToVisible(editorPanel.nodeTable().getCellRect(i, 0, true));
+                return;
             }
         }
     }
+
 
     private NodeInput showNodeDialog(String title, TraceNode initial) {
         javax.swing.JTextField titleField = new javax.swing.JTextField(initial == null || initial.title() == null ? "" : initial.title());
@@ -611,7 +558,7 @@ public final class CodeTracePanel {
             syncingTraceNote = false;
             persistedTraceNote = "";
             syncingNodeSelection = true;
-            editorPanel.nodeTree().setModel(null);
+            editorPanel.nodeTable().setModel(new javax.swing.table.DefaultTableModel());
             syncingNodeSelection = false;
             selectedNodeId = null;
             controller.consumePreferredSelectedNodeId();
@@ -634,10 +581,26 @@ public final class CodeTracePanel {
         syncingTraceNote = false;
 
         syncingNodeSelection = true;
-        TraceTreeModel model = new TraceTreeModel(() -> controller.state().currentDocument());
-        editorPanel.nodeTree().setModel(model);
+        // 计算编号
+        Map<String, String> numberMap = NodeNumberingService.calculateNumbers(document);
+        // 创建表格模型
+        NodeTableModel tableModel = new NodeTableModel(document.nodes(), numberMap, document.links());
+        editorPanel.nodeTable().setModel(tableModel);
+        // 设置渲染器
+        editorPanel.nodeTable().getColumnModel().getColumn(0).setCellRenderer(
+                new NodeNumberRenderer());
+        editorPanel.nodeTable().getColumnModel().getColumn(1).setCellRenderer(
+                new NodeNameRenderer(
+                        () -> controller.state().currentDocument(),
+                        () -> controller.state().focusedNodeId(),
+                        () -> controller.state().pendingLinkSourceId()));
+        editorPanel.nodeTable().getColumnModel().getColumn(2).setCellRenderer(
+                new LinkRelationColumnRenderer(
+                        () -> controller.state().currentDocument(),
+                        () -> numberMap,
+                        () -> controller.state().focusedNodeId(),
+                        () -> controller.state().pendingLinkSourceId()));
         restoreSelection(document.nodes());
-        restoreExpandState(document);
         syncingNodeSelection = false;
         editorPanel.linkStatus().setText("Link source: "
                 + (controller.state().pendingLinkSourceId() == null ? "none" : controller.state().pendingLinkSourceId()));
@@ -685,10 +648,13 @@ public final class CodeTracePanel {
         if (selectedNodeId == null || controller.state().currentDocument() == null) {
             return null;
         }
-        JTree tree = editorPanel.nodeTree();
-        TreePath path = tree.getSelectionPath();
-        if (path != null && path.getLastPathComponent() instanceof TraceNode node) {
-            return node.id().equals(selectedNodeId) ? node : null;
+        int selectedRow = editorPanel.nodeTable().getSelectedRow();
+        if (selectedRow >= 0) {
+            NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
+            TraceNode node = model.getNodeAt(selectedRow);
+            if (node.id().equals(selectedNodeId)) {
+                return node;
+            }
         }
         // fallback: search document
         return controller.state().currentDocument().nodes().stream()
@@ -763,28 +729,25 @@ public final class CodeTracePanel {
         selectedNodeId = NodeSelectionPolicy.resolveSelectedNodeId(nodes, selectedNodeId, preferredSelectedNodeId);
         if (selectedNodeId == null) {
             controller.clearFocusedNodeId();
-            editorPanel.nodeTree().clearSelection();
+            editorPanel.nodeTable().clearSelection();
             return;
         }
         controller.setFocusedNodeId(selectedNodeId);
-        JTree tree = editorPanel.nodeTree();
-        TraceTreeModel model = (TraceTreeModel) tree.getModel();
+        // 在表格中查找并选中节点
+        NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
         if (model == null) return;
-        TraceNode target = findNodeById(selectedNodeId);
-        if (target == null) {
-            selectedNodeId = null;
-            controller.clearFocusedNodeId();
-            tree.clearSelection();
-            return;
+        for (int i = 0; i < model.getRowCount(); i++) {
+            TraceNode node = model.getNodeAt(i);
+            if (node.id().equals(selectedNodeId)) {
+                editorPanel.nodeTable().setRowSelectionInterval(i, i);
+                editorPanel.nodeTable().scrollRectToVisible(editorPanel.nodeTable().getCellRect(i, 0, true));
+                return;
+            }
         }
-        TreePath nodePath = findPathForNode(model, new TreePath(model.getRoot()), target);
-        if (nodePath != null) {
-            tree.setSelectionPath(nodePath);
-        } else {
-            selectedNodeId = null;
-            controller.clearFocusedNodeId();
-            tree.clearSelection();
-        }
+        // 未找到节点
+        selectedNodeId = null;
+        controller.clearFocusedNodeId();
+        editorPanel.nodeTable().clearSelection();
     }
 
     TraceEditorPanel editorPanel() {
@@ -810,5 +773,120 @@ public final class CodeTracePanel {
     private record LinkedNodes(
             List<TraceNode> sources,
             List<TraceNode> targets) {
+    }
+
+    private static class NodeTableModel extends javax.swing.table.AbstractTableModel {
+        private final List<TraceNode> nodes;
+        private final Map<String, String> numberMap;
+        private final List<TraceLink> links;
+
+        private static final String[] COLUMN_NAMES = {"编号", "节点名称", "链接关系"};
+
+        public NodeTableModel(List<TraceNode> nodes, Map<String, String> numberMap, List<TraceLink> links) {
+            this.nodes = nodes;
+            this.numberMap = numberMap;
+            this.links = links;
+        }
+
+        @Override
+        public int getRowCount() {
+            return nodes.size();
+        }
+
+        @Override
+        public int getColumnCount() {
+            return 3;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            return COLUMN_NAMES[column];
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            TraceNode node = nodes.get(rowIndex);
+            return switch (columnIndex) {
+                case 0 -> numberMap.getOrDefault(node.id(), "");
+                case 1 -> node;
+                case 2 -> node; // 渲染器会处理链接关系
+                default -> null;
+            };
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return switch (columnIndex) {
+                case 0 -> String.class;
+                case 1 -> TraceNode.class;
+                case 2 -> TraceNode.class;
+                default -> Object.class;
+            };
+        }
+
+        public TraceNode getNodeAt(int rowIndex) {
+            return nodes.get(rowIndex);
+        }
+    }
+
+    private static class NodeNumberRenderer extends DefaultTableCellRenderer {
+        @Override
+        public java.awt.Component getTableCellRendererComponent(
+                javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus,
+                int row, int column) {
+            javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(
+                    table, value, isSelected, hasFocus, row, column);
+            label.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+            return label;
+        }
+    }
+
+    private static class NodeNameRenderer extends DefaultTableCellRenderer {
+        private final java.util.function.Supplier<TraceDocument> documentSupplier;
+        private final java.util.function.Supplier<String> focusedNodeIdSupplier;
+        private final java.util.function.Supplier<String> pendingSourceSupplier;
+
+        public NodeNameRenderer(
+                java.util.function.Supplier<TraceDocument> documentSupplier,
+                java.util.function.Supplier<String> focusedNodeIdSupplier,
+                java.util.function.Supplier<String> pendingSourceSupplier) {
+            this.documentSupplier = documentSupplier;
+            this.focusedNodeIdSupplier = focusedNodeIdSupplier;
+            this.pendingSourceSupplier = pendingSourceSupplier;
+        }
+
+        @Override
+        public java.awt.Component getTableCellRendererComponent(
+                javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus,
+                int row, int column) {
+            javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(
+                    table, "", isSelected, hasFocus, row, column);
+
+            if (!(value instanceof TraceNode node) || node == TraceTreeModel.VIRTUAL_ROOT) {
+                return label;
+            }
+
+            label.setOpaque(true);
+            label.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 4, 3, 4));
+
+            StringBuilder prefix = new StringBuilder();
+
+            // Focus indicator
+            if (node.id().equals(focusedNodeIdSupplier.get())) {
+                prefix.append("● ");
+            }
+
+            // Title + displayName
+            String title = node.title();
+            if (title != null && !title.isBlank()) {
+                String truncated = title.length() > 15
+                        ? title.substring(0, 15) + "…" : title;
+                label.setText(prefix + truncated + " — " + node.displayName());
+            } else {
+                label.setText(prefix + node.displayName());
+            }
+
+            return label;
+        }
     }
 }

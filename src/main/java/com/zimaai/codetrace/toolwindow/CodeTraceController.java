@@ -382,7 +382,17 @@ public final class CodeTraceController {
         List<TraceNode> nodes = document.nodes().stream()
                 .filter(node -> !allRemoved.contains(node.id()))
                 .toList();
-        // Keep all links — they are used for navigation, not structural grouping
+        // DESIGN DECISION (Technical Debt): Keep all links, including dangling ones that reference
+        // removed nodes. Links are lightweight and used for navigation rendering, not structural
+        // grouping. The lazy-filtering approach (isValid checks at read time) avoids cascading
+        // link cleanup on every delete and keeps the delete operation O(nodes) instead of O(nodes*links).
+        //
+        // Known trade-off: dangling links accumulate over time, increasing serialization size and
+        // causing unnecessary isValid checks during iteration. Acceptable for typical trace file
+        // lifetimes. If this becomes a problem, consider:
+        //   1. Adding a "clean dangling links" user action
+        //   2. Auto-cleaning on save/serialize
+        //   3. Batch-cleaning in unlinkNode()
         List<TraceLink> links = document.links();
         Set<String> cleanedExpanded = document.expandedNodeIds().stream()
                 .filter(id -> !allRemoved.contains(id))

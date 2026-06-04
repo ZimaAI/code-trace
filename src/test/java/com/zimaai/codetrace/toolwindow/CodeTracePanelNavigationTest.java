@@ -29,7 +29,7 @@ class CodeTracePanelNavigationTest {
         AtomicReference<TraceNode> navigated = new AtomicReference<>();
         CodeTracePanel panel = panelFor(documentWithLinkedAndUnlinkedNodes(), navigated);
 
-        panel.editorPanel().nodeTree().setSelectionRow(2);
+        panel.editorPanel().nodeTable().setRowSelectionInterval(2, 2);
 
         assertFalse(panel.editorPanel().goToLinkedButton().isEnabled());
     }
@@ -40,13 +40,13 @@ class CodeTracePanelNavigationTest {
         CodeTracePanel panel = panelFor(documentWithLinkedAndUnlinkedNodes(), navigated);
 
         // Selecting node-1 (source of link-1 to node-2) has 1 linked node: node-2
-        panel.editorPanel().nodeTree().setSelectionRow(0);
+        panel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
         assertTrue(panel.editorPanel().goToLinkedButton().isEnabled());
         panel.editorPanel().goToLinkedButton().doClick();
         assertEquals("node-2", navigated.get().id());
 
         // Selecting node-2 (target of link-1 from node-1) has 1 linked node: node-1
-        panel.editorPanel().nodeTree().setSelectionRow(1);
+        panel.editorPanel().nodeTable().setRowSelectionInterval(1, 1);
         panel.editorPanel().goToLinkedButton().doClick();
         assertEquals("node-1", navigated.get().id());
     }
@@ -56,18 +56,18 @@ class CodeTracePanelNavigationTest {
         AtomicReference<TraceNode> navigated = new AtomicReference<>();
         CodeTracePanel missingTargetPanel = panelFor(documentWithMissingTarget(), navigated);
 
-        missingTargetPanel.editorPanel().nodeTree().setSelectionRow(0);
+        missingTargetPanel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
         assertFalse(missingTargetPanel.editorPanel().goToLinkedButton().isEnabled());
 
         CodeTracePanel unlinkPanel = panelFor(documentWithLinkedAndUnlinkedNodes(), new AtomicReference<>());
-        unlinkPanel.editorPanel().nodeTree().setSelectionRow(0);
+        unlinkPanel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
         unlinkPanel.editorPanel().unlinkButton().doClick();
         assertFalse(unlinkPanel.editorPanel().goToLinkedButton().isEnabled());
 
         CodeTracePanel deletePanel = panelFor(documentWithLinkedAndUnlinkedNodes(), new AtomicReference<>());
-        deletePanel.editorPanel().nodeTree().setSelectionRow(0);
+        deletePanel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
         deletePanel.editorPanel().deleteNodeButton().doClick();
-        assertTrue(deletePanel.editorPanel().nodeTree().isSelectionEmpty());
+        assertTrue(deletePanel.editorPanel().nodeTable().getSelectionModel().isSelectionEmpty());
         assertFalse(deletePanel.editorPanel().goToLinkedButton().isEnabled());
     }
 
@@ -76,18 +76,20 @@ class CodeTracePanelNavigationTest {
         AtomicReference<TraceNode> navigated = new AtomicReference<>();
         CodeTracePanel panel = panelFor(documentWithLinkedAndUnlinkedNodes(), navigated);
 
-        panel.editorPanel().nodeTree().setSelectionRow(1);
+        panel.editorPanel().nodeTable().setRowSelectionInterval(1, 1);
 
+        // 获取选中行的位置，以便 MouseEvent 能正确识别行
+        java.awt.Rectangle cellRect = panel.editorPanel().nodeTable().getCellRect(1, 0, true);
         MouseEvent event = new MouseEvent(
-                panel.editorPanel().nodeTree(),
+                panel.editorPanel().nodeTable(),
                 MouseEvent.MOUSE_CLICKED,
                 System.currentTimeMillis(),
                 0,
-                10,
-                10,
+                cellRect.x + 5,
+                cellRect.y + 5,
                 2,
                 false);
-        for (MouseListener listener : panel.editorPanel().nodeTree().getMouseListeners()) {
+        for (MouseListener listener : panel.editorPanel().nodeTable().getMouseListeners()) {
             listener.mouseClicked(event);
         }
 
@@ -100,7 +102,7 @@ class CodeTracePanelNavigationTest {
         CodeTracePanel panel = panelFor(documentWithMultipleLinks(), navigated);
 
         // node-A has 3 linked nodes: node-B, node-C (as targets), node-D (as source)
-        panel.editorPanel().nodeTree().setSelectionRow(0);
+        panel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
         assertTrue(panel.editorPanel().goToLinkedButton().isEnabled());
 
         JButton button = panel.editorPanel().goToLinkedButton();

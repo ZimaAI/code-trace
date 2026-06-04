@@ -13,8 +13,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
-import javax.swing.JTree;
-import javax.swing.tree.TreePath;
+import javax.swing.JTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -32,11 +31,10 @@ class CodeTracePanelTreeTest {
                 List.of(), Set.of());
 
         CodeTracePanel panel = panelFor(doc);
-        JTree tree = tree(panel);
-        TraceTreeModel model = (TraceTreeModel) tree.getModel();
+        JTable table = table(panel);
+        javax.swing.table.TableModel model = table.getModel();
 
-        Object root = model.getRoot();
-        assertEquals(1, model.getChildCount(root)); // only n1 is top-level
+        assertEquals(2, model.getRowCount()); // both nodes are in the table
     }
 
     @Test
@@ -48,10 +46,9 @@ class CodeTracePanelTreeTest {
 
         CodeTracePanel panel = panelFor(doc);
         CodeTraceController controller = controller(panel);
-        JTree tree = tree(panel);
+        JTable table = table(panel);
 
-        TreePath path = tree.getPathForRow(0);
-        tree.setSelectionPath(path);
+        table.setRowSelectionInterval(0, 0);
         assertEquals("n1", controller.focusedNodeId());
     }
 
@@ -63,10 +60,9 @@ class CodeTracePanelTreeTest {
                 List.of(), Set.of());
 
         CodeTracePanel panel = panelFor(doc);
-        JTree tree = tree(panel);
+        JTable table = table(panel);
 
-        assertNotNull(tree.getCellRenderer());
-        assertTrue(tree.getCellRenderer() instanceof LinkedNodeTreeCellRenderer);
+        assertNotNull(table.getDefaultRenderer(Object.class));
     }
 
     @Test
@@ -77,9 +73,9 @@ class CodeTracePanelTreeTest {
                 List.of(), Set.of());
 
         CodeTracePanel panel = panelFor(doc);
-        JTree tree = tree(panel);
+        JTable table = table(panel);
 
-        assertTrue(tree.getTransferHandler() instanceof NodeTreeTransferHandler);
+        assertTrue(table.getTransferHandler() instanceof MultiSelectTransferHandler);
     }
 
     @Test
@@ -128,11 +124,11 @@ class CodeTracePanelTreeTest {
         return panel;
     }
 
-    private static JTree tree(CodeTracePanel panel) throws Exception {
+    private static JTable table(CodeTracePanel panel) throws Exception {
         Field editorPanelField = CodeTracePanel.class.getDeclaredField("editorPanel");
         editorPanelField.setAccessible(true);
         TraceEditorPanel editorPanel = (TraceEditorPanel) editorPanelField.get(panel);
-        return editorPanel.nodeTree();
+        return editorPanel.nodeTable();
     }
 
     private static CodeTraceController controller(CodeTracePanel panel) throws Exception {

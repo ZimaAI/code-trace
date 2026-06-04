@@ -73,10 +73,9 @@ class TraceEditorPanelTest {
     }
 
     @Test
-    void exposesJTreeInsteadOfJListAfterTreeMigration() {
+    void exposesJTableInsteadOfJTreeAfterMigration() {
         TraceEditorPanel panel = new TraceEditorPanel();
 
-        assertNotNull(panel.nodeTree());
-        assertFalse(panel.nodeTree().isRootVisible());
+        assertNotNull(panel.nodeTable());
     }
 }

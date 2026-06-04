@@ -7,7 +7,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.ColorUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
-import javax.swing.JTree;
+import javax.swing.JTable;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
@@ -25,7 +25,7 @@ import javax.swing.SwingConstants;
 public final class TraceEditorPanel {
     private final JBTextArea traceNote = new JBTextArea();
     private final JButton saveTraceNoteButton = new JButton("Save Trace Note", AllIcons.Actions.MenuSaveall);
-    private final JTree nodeTree = new JTree();
+    private final JTable nodeTable = new JTable();
     private final JBTextArea nodeNote = new JBTextArea();
     private final JButton saveNodeNoteButton = new JButton("Save Node Note", AllIcons.Actions.MenuSaveall);
     private final JButton editNodeButton = new JButton("Edit Node", AllIcons.Actions.Edit);
@@ -44,11 +44,11 @@ public final class TraceEditorPanel {
         configureTextArea(traceNote);
         configureTextArea(nodeNote);
 
-        // Configure JTree
-        nodeTree.setRootVisible(false);
-        nodeTree.setShowsRootHandles(true);
-        nodeTree.setEditable(false);
-        nodeTree.setToggleClickCount(0);
+        // Configure JTable
+        nodeTable.setShowGrid(false);
+        nodeTable.setIntercellSpacing(new java.awt.Dimension(0, 0));
+        nodeTable.setRowHeight(24);
+        nodeTable.setSelectionMode(javax.swing.ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
         JPanel traceNotePanel = new JPanel(new BorderLayout());
         traceNotePanel.setBorder(JBUI.Borders.empty(0, 0, 6, 0));
@@ -65,7 +65,7 @@ public final class TraceEditorPanel {
 
         JSplitPane split = new JSplitPane(
                 JSplitPane.VERTICAL_SPLIT,
-                new JBScrollPane(nodeTree),
+                new JBScrollPane(nodeTable),
                 nodeNotePanel);
         split.setResizeWeight(0.7d);
 
@@ -146,8 +146,8 @@ public final class TraceEditorPanel {
         return saveTraceNoteButton;
     }
 
-    public JTree nodeTree() {
-        return nodeTree;
+    public JTable nodeTable() {
+        return nodeTable;
     }
 
     public JBTextArea nodeNote() {
