@@ -6,6 +6,7 @@ import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -305,18 +306,20 @@ public final class TraceDocumentEditor {
         Objects.requireNonNull(document, "document");
         Objects.requireNonNull(now, "now");
 
-        Set<String> expandedNodeIds = new java.util.HashSet<>();
         List<TraceNode> nodes = document.nodes();
 
+        // 预构建 parentId 集合，O(n) 复杂度
+        Set<String> parentIds = nodes.stream()
+                .map(TraceNode::parentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Set<String> expandedNodeIds = new HashSet<>();
+
+        // 只展开有子节点的节点
         for (TraceNode node : nodes) {
-            if (node.parentId() == null) {
+            if (parentIds.contains(node.id())) {
                 expandedNodeIds.add(node.id());
-            } else {
-                boolean hasChildren = nodes.stream()
-                        .anyMatch(n -> node.id().equals(n.parentId()));
-                if (hasChildren) {
-                    expandedNodeIds.add(node.id());
-                }
             }
         }
 

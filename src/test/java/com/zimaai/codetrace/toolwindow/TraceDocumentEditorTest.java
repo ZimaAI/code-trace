@@ -71,4 +71,25 @@ class TraceDocumentEditorTest {
 
         assertTrue(result.expandedNodeIds().isEmpty());
     }
+
+    @Test
+    void testExpandAllNodes_LeafRootNodeNotExpanded() {
+        List<TraceNode> nodes = List.of(root("1")); // 无子节点
+        TraceDocument doc = new TraceDocument(3, "test", "test", "test",
+                NOW, NOW, nodes, List.of(), Set.of());
+
+        TraceDocument result = editor.expandAllNodes(doc, NOW);
+
+        assertFalse(result.expandedNodeIds().contains("1"));
+    }
+
+    @Test
+    void testExpandAllNodes_EmptyDocument_ReturnsEmptySet() {
+        TraceDocument doc = new TraceDocument(3, "test", "test", "test",
+                NOW, NOW, List.of(), List.of(), Set.of());
+
+        TraceDocument result = editor.expandAllNodes(doc, NOW);
+
+        assertTrue(result.expandedNodeIds().isEmpty());
+    }
 }
