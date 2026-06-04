@@ -26,6 +26,42 @@ class NodeNumberingServiceTest {
         assertEquals("3", numbers.get("node-3"));
     }
 
+    @Test
+    void calculateNumbers_shouldNumberNestedNodes() {
+        // Given
+        TraceNode root1 = createNode("root-1", "Root1", null);
+        TraceNode child1 = createNode("child-1", "Child1", "root-1");
+        TraceNode child2 = createNode("child-2", "Child2", "root-1");
+        TraceNode grandchild = createNode("grandchild-1", "GrandChild1", "child-1");
+        TraceNode root2 = createNode("root-2", "Root2", null);
+
+        TraceDocument doc = createDocument(
+                List.of(root1, child1, child2, grandchild, root2),
+                List.of());
+
+        // When
+        Map<String, String> numbers = NodeNumberingService.calculateNumbers(doc);
+
+        // Then
+        assertEquals("1", numbers.get("root-1"));
+        assertEquals("1.1", numbers.get("child-1"));
+        assertEquals("1.2", numbers.get("child-2"));
+        assertEquals("1.1.1", numbers.get("grandchild-1"));
+        assertEquals("2", numbers.get("root-2"));
+    }
+
+    @Test
+    void calculateNumbers_shouldHandleEmptyDocument() {
+        // Given
+        TraceDocument doc = createDocument(List.of(), List.of());
+
+        // When
+        Map<String, String> numbers = NodeNumberingService.calculateNumbers(doc);
+
+        // Then
+        assertEquals(true, numbers.isEmpty());
+    }
+
     private static TraceNode createNode(String id, String displayName, String parentId) {
         return new TraceNode(
                 id, displayName, displayName + "#m", displayName.toLowerCase() + "()",
