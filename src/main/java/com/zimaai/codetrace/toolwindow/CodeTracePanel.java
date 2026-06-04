@@ -603,6 +603,15 @@ public final class CodeTracePanel {
                         () -> numberMap,
                         () -> controller.state().focusedNodeId(),
                         () -> controller.state().pendingLinkSourceId()));
+        // 设置列宽比例 编号:节点名称:链接关系 = 1:5:1
+        int totalWidth = editorPanel.nodeTable().getWidth();
+        if (totalWidth <= 0) {
+            totalWidth = 420; // 默认总宽度
+        }
+        int unit = totalWidth / 7;
+        editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(unit);
+        editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(unit * 5);
+        editorPanel.nodeTable().getColumnModel().getColumn(2).setPreferredWidth(unit);
         restoreSelection(document.nodes());
         syncingNodeSelection = false;
         editorPanel.linkStatus().setText("Link source: "
