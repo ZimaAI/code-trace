@@ -270,6 +270,87 @@ public final class TraceDocumentEditor {
                 expandedNodeIds);
     }
 
+    /**
+     * 切换节点的展开状态
+     */
+    public TraceDocument toggleExpandedNode(TraceDocument document, String nodeId, boolean expand, Instant now) {
+        Objects.requireNonNull(document, "document");
+        Objects.requireNonNull(nodeId, "nodeId");
+        Objects.requireNonNull(now, "now");
+
+        Set<String> expandedNodeIds = new java.util.HashSet<>(document.expandedNodeIds());
+
+        if (expand) {
+            expandedNodeIds.add(nodeId);
+        } else {
+            expandedNodeIds.remove(nodeId);
+        }
+
+        return new TraceDocument(
+                3,
+                document.id(),
+                document.name(),
+                document.description(),
+                document.createdAt(),
+                now,
+                document.nodes(),
+                document.links(),
+                expandedNodeIds);
+    }
+
+    /**
+     * 展开所有有子节点的节点
+     */
+    public TraceDocument expandAllNodes(TraceDocument document, Instant now) {
+        Objects.requireNonNull(document, "document");
+        Objects.requireNonNull(now, "now");
+
+        Set<String> expandedNodeIds = new java.util.HashSet<>();
+        List<TraceNode> nodes = document.nodes();
+
+        for (TraceNode node : nodes) {
+            if (node.parentId() == null) {
+                expandedNodeIds.add(node.id());
+            } else {
+                boolean hasChildren = nodes.stream()
+                        .anyMatch(n -> node.id().equals(n.parentId()));
+                if (hasChildren) {
+                    expandedNodeIds.add(node.id());
+                }
+            }
+        }
+
+        return new TraceDocument(
+                3,
+                document.id(),
+                document.name(),
+                document.description(),
+                document.createdAt(),
+                now,
+                nodes,
+                document.links(),
+                expandedNodeIds);
+    }
+
+    /**
+     * 折叠所有节点
+     */
+    public TraceDocument collapseAllNodes(TraceDocument document, Instant now) {
+        Objects.requireNonNull(document, "document");
+        Objects.requireNonNull(now, "now");
+
+        return new TraceDocument(
+                3,
+                document.id(),
+                document.name(),
+                document.description(),
+                document.createdAt(),
+                now,
+                document.nodes(),
+                document.links(),
+                Set.of());
+    }
+
     private static void validateParentChange(TraceDocument document, String nodeId, String newParentId) {
         if (newParentId == null) {
             return; // moving to root is always valid
