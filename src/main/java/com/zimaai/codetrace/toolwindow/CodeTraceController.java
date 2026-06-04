@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.function.Function;
 
 public final class CodeTraceController {
@@ -383,6 +384,9 @@ public final class CodeTraceController {
                 .toList();
         // Keep all links — they are used for navigation, not structural grouping
         List<TraceLink> links = document.links();
+        Set<String> cleanedExpanded = document.expandedNodeIds().stream()
+                .filter(id -> !allRemoved.contains(id))
+                .collect(Collectors.toSet());
         return new TraceDocument(
                 3,
                 document.id(),
@@ -392,7 +396,7 @@ public final class CodeTraceController {
                 now,
                 nodes,
                 links,
-                document.expandedNodeIds());
+                cleanedExpanded);
     }
 
     private static void collectDescendantIds(List<TraceNode> nodes, Set<String> result) {

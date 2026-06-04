@@ -12,6 +12,7 @@ import com.zimaai.codetrace.storage.TraceStorageService;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -190,7 +191,7 @@ class CodeTraceControllerTest {
                         new TraceNode("node-3", "line 3", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c")),
                 List.of(new TraceLink("link-1", "node-2", "node-3",
                         Instant.parse("2026-05-29T10:00:00Z"), TraceLinkKind.MANUAL)),
-                java.util.Set.of());
+                Set.of());
     }
 
     @Test
@@ -206,7 +207,7 @@ class CodeTraceControllerTest {
                 Instant.parse("2026-05-29T10:00:00Z"),
                 List.of(nodeA, nodeB),
                 List.of(link),
-                java.util.Set.of());
+                Set.of());
         storage.save("trace-linked.json", doc);
         CodeTraceController controller = new CodeTraceController(storage, node -> true);
         controller.load("trace-linked.json");
@@ -233,7 +234,7 @@ class CodeTraceControllerTest {
                 Instant.parse("2026-05-29T10:00:00Z"),
                 List.of(nodeA, nodeB),
                 List.of(link),
-                java.util.Set.of());
+                Set.of());
         storage.save("trace-delete.json", doc);
         CodeTraceController controller = new CodeTraceController(storage, node -> true);
         controller.load("trace-delete.json");
@@ -265,7 +266,7 @@ class CodeTraceControllerTest {
                 Instant.parse("2026-05-29T10:00:00Z"),
                 List.of(nodeA, nodeB, nodeC),
                 List.of(link),
-                java.util.Set.of());
+                Set.of());
         storage.save("trace-ghost.json", doc);
         CodeTraceController controller = new CodeTraceController(storage, node -> true);
         controller.load("trace-ghost.json");
@@ -296,6 +297,33 @@ class CodeTraceControllerTest {
         assertEquals(List.of(), remaining);
     }
 
+    @Test
+    void deleteNode_cleansUpExpandedNodeIdsOfRemovedNodes() {
+        TraceDocument doc = new TraceDocument(
+                3, "tree-expanded", "Tree", "",
+                Instant.parse("2026-06-02T10:00:00Z"),
+                Instant.parse("2026-06-02T10:00:00Z"),
+                List.of(
+                        new TraceNode("n1", "root", "", "", "", 0, "", "", ""),
+                        new TraceNode("n2", "child-a", "", "", "", 0, "", "", "", "n1", (String) null),
+                        new TraceNode("n3", "child-b", "", "", "", 0, "", "", "", "n2", (String) null),
+                        new TraceNode("n4", "unrelated", "", "", "", 0, "", "", "")),
+                List.of(),
+                Set.of("n1", "n2", "n3", "n4"));
+
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("tree-expanded.json", doc);
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("tree-expanded.json");
+
+        // Deleting n1 should cascade to n2 and n3, and clean up their expanded IDs
+        controller.deleteNode("n1");
+
+        Set<String> expanded = controller.state().currentDocument().expandedNodeIds();
+        // n4 survives — its expanded ID should remain; n1/n2/n3 should be removed
+        assertEquals(Set.of("n4"), expanded);
+    }
+
     private static TraceDocument documentWithNestedNodes() {
         return new TraceDocument(
                 3, "tree-1", "Tree", "",
@@ -305,7 +333,7 @@ class CodeTraceControllerTest {
                         new TraceNode("n1", "root", "", "", "", 0, "", "", ""),
                         new TraceNode("n2", "child-a", "", "", "", 0, "", "", "", "n1", (String) null),
                         new TraceNode("n3", "child-b", "", "", "", 0, "", "", "", "n2", (String) null)),
-                List.of(), java.util.Set.of());
+                List.of(), Set.of());
     }
 
     private static TraceDocument documentWithThreeNodes() {
@@ -321,6 +349,6 @@ class CodeTraceControllerTest {
                         new TraceNode("node-2", "line 2", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b"),
                         new TraceNode("node-3", "line 3", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c")),
                 List.<TraceLink>of(),
-                java.util.Set.of());
+                Set.of());
     }
 }
