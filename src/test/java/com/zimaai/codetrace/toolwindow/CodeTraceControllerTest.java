@@ -3,8 +3,6 @@ package com.zimaai.codetrace.toolwindow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceLink;
 import com.zimaai.codetrace.model.TraceLinkKind;
@@ -66,7 +64,8 @@ class CodeTraceControllerTest {
         assertEquals(List.of("node-3", "node-2"), controller.state().currentDocument().nodes().stream()
                 .map(TraceNode::id)
                 .collect(Collectors.toList()));
-        assertTrue(controller.state().currentDocument().links().isEmpty());
+        // Links are preserved even when a referenced node is deleted
+        assertEquals(1, controller.state().currentDocument().links().size());
     }
 
     @Test
@@ -219,6 +218,37 @@ class CodeTraceControllerTest {
         List<String> order = controller.state().currentDocument().nodes().stream()
                 .map(TraceNode::id).toList();
         assertEquals(List.of("node-b", "node-a"), order);
+    }
+
+    @Test
+    void deleteNode_shouldOnlyDeleteSingleNode_notLinkedNodes() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        TraceNode nodeA = new TraceNode("node-a", "A", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a");
+        TraceNode nodeB = new TraceNode("node-b", "B", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b");
+        TraceLink link = new TraceLink("link-1", "node-a", "node-b",
+                Instant.parse("2026-05-29T10:00:00Z"), TraceLinkKind.MANUAL);
+        TraceDocument doc = new TraceDocument(
+                3, "trace-delete", "Delete Test", "",
+                Instant.parse("2026-05-29T10:00:00Z"),
+                Instant.parse("2026-05-29T10:00:00Z"),
+                List.of(nodeA, nodeB),
+                List.of(link),
+                java.util.Set.of());
+        storage.save("trace-delete.json", doc);
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("trace-delete.json");
+
+        // When: delete node A
+        controller.deleteNode("node-a");
+
+        // Then: only node A is deleted, node B is preserved
+        List<String> remaining = controller.state().currentDocument().nodes().stream()
+                .map(TraceNode::id).toList();
+        assertEquals(List.of("node-b"), remaining);
+        // Link is preserved (not removed even though it references deleted node A)
+        assertEquals(1, controller.state().currentDocument().links().size());
+        assertEquals("node-a", controller.state().currentDocument().links().get(0).sourceNodeId());
+        assertEquals("node-b", controller.state().currentDocument().links().get(0).targetNodeId());
     }
 
     @Test

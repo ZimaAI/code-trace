@@ -381,10 +381,8 @@ public final class CodeTraceController {
         List<TraceNode> nodes = document.nodes().stream()
                 .filter(node -> !allRemoved.contains(node.id()))
                 .toList();
-        List<TraceLink> links = document.links().stream()
-                .filter(link -> !allRemoved.contains(link.sourceNodeId())
-                        && !allRemoved.contains(link.targetNodeId()))
-                .toList();
+        // Keep all links — they are used for navigation, not structural grouping
+        List<TraceLink> links = document.links();
         return new TraceDocument(
                 3,
                 document.id(),
