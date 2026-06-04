@@ -252,6 +252,37 @@ class CodeTraceControllerTest {
     }
 
     @Test
+    void survivingNodeIsStillLinkableAfterLinkedPartnerIsDeleted() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        TraceNode nodeA = new TraceNode("node-a", "A", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a");
+        TraceNode nodeB = new TraceNode("node-b", "B", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b");
+        TraceNode nodeC = new TraceNode("node-c", "C", "C#c", "c()", "C.java", 30, "JAVA", "", "C#c");
+        TraceLink link = new TraceLink("link-1", "node-a", "node-b",
+                Instant.parse("2026-05-29T10:00:00Z"), TraceLinkKind.MANUAL);
+        TraceDocument doc = new TraceDocument(
+                3, "trace-ghost", "Ghost Link Test", "",
+                Instant.parse("2026-05-29T10:00:00Z"),
+                Instant.parse("2026-05-29T10:00:00Z"),
+                List.of(nodeA, nodeB, nodeC),
+                List.of(link),
+                java.util.Set.of());
+        storage.save("trace-ghost.json", doc);
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("trace-ghost.json");
+
+        // Delete node-a; the preserved link now references a non-existent node
+        controller.deleteNode("node-a");
+        assertEquals(1, controller.state().currentDocument().links().size());
+
+        // node-b should still be linkable — the dangling link must not block it
+        controller.setPendingLinkSource("node-b");
+        controller.linkPendingSourceTo("node-c", TraceLinkKind.MANUAL);
+
+        // Two links total: the dangling one and the new node-b -> node-c
+        assertEquals(2, controller.state().currentDocument().links().size());
+    }
+
+    @Test
     void cascadesDeleteToAllDescendants() {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
         storage.save("tree.json", documentWithNestedNodes());

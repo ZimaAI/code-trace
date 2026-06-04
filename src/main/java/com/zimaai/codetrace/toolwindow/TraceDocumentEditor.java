@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public final class TraceDocumentEditor {
     public TraceDocument saveDescription(TraceDocument document, String description, Instant now) {
@@ -114,7 +115,13 @@ public final class TraceDocumentEditor {
         if (sourceNodeId.equals(targetNodeId)) {
             throw new IllegalArgumentException("Cannot link a node to itself");
         }
+        Set<String> nodeIds = document.nodes().stream()
+                .map(TraceNode::id)
+                .collect(Collectors.toSet());
         for (TraceLink link : document.links()) {
+            if (!nodeIds.contains(link.sourceNodeId()) || !nodeIds.contains(link.targetNodeId())) {
+                continue; // skip dangling link that references a deleted node
+            }
             if (link.sourceNodeId().equals(sourceNodeId)
                     || link.targetNodeId().equals(sourceNodeId)
                     || link.sourceNodeId().equals(targetNodeId)
