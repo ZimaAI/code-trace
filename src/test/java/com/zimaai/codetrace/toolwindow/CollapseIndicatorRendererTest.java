@@ -1,46 +1,39 @@
 package com.zimaai.codetrace.toolwindow;
 
-import com.zimaai.codetrace.model.TraceNode;
 import org.junit.jupiter.api.Test;
-import java.util.List;
-import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CollapseIndicatorRendererTest {
 
     @Test
-    void testBuildTreePrefix_RootNode_ReturnsCollapsedIcon() {
-        TraceNode node = new TraceNode("1", "Root", null, null, null, 0, null, null, null);
-        String prefix = CollapseIndicatorRenderer.buildTreePrefix(node, 0, true, true, true);
+    void testBuildTreePrefix_RootNode_ReturnsEmptyString() {
+        String prefix = CollapseIndicatorRenderer.buildTreePrefix(0, true, true, true);
 
-        // Should contain collapsed icon
-        assertTrue(prefix.contains("▶") || prefix.contains("▼"));
+        // 根节点返回空字符串，图标由渲染器单独设置
+        assertEquals("", prefix);
     }
 
     @Test
     void testBuildTreePrefix_ChildNode_ReturnsTreeLine() {
-        TraceNode node = new TraceNode("2", "Child", null, null, null, 0, null, null, "1");
-        String prefix = CollapseIndicatorRenderer.buildTreePrefix(node, 1, false, false, true);
+        String prefix = CollapseIndicatorRenderer.buildTreePrefix(1, false, false, false);
 
-        // Should contain tree line characters
-        assertTrue(prefix.contains("├──") || prefix.contains("└──"));
+        // 中间子节点返回 tee line
+        assertTrue(prefix.contains("├──"));
     }
 
     @Test
     void testBuildTreePrefix_LastChild_ReturnsCornerLine() {
-        TraceNode node = new TraceNode("2", "LastChild", null, null, null, 0, null, null, "1");
-        String prefix = CollapseIndicatorRenderer.buildTreePrefix(node, 1, false, true, true);
+        String prefix = CollapseIndicatorRenderer.buildTreePrefix(1, false, true, true);
 
-        // Should contain corner line
+        // 最后一个子节点返回 corner line
         assertTrue(prefix.contains("└──"));
     }
 
     @Test
     void testBuildTreePrefix_MiddleChild_ReturnsTeeLine() {
-        TraceNode node = new TraceNode("2", "MiddleChild", null, null, null, 0, null, null, "1");
-        String prefix = CollapseIndicatorRenderer.buildTreePrefix(node, 1, false, false, false);
+        String prefix = CollapseIndicatorRenderer.buildTreePrefix(1, false, false, false);
 
-        // Should contain tee line
+        // 中间子节点返回 tee line
         assertTrue(prefix.contains("├──"));
     }
 }

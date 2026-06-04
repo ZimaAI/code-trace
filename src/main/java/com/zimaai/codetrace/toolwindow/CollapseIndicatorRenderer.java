@@ -6,16 +6,19 @@ import com.zimaai.codetrace.model.TraceNode;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.util.function.Function;
 
 /**
  * 折叠指示器渲染器，在编号列显示展开/折叠图标和树形连接线
  */
 public class CollapseIndicatorRenderer extends DefaultTableCellRenderer {
+    private static final int INDENT_PER_LEVEL = 20;
+
     private final FilteredNodeTableModel filteredModel;
-    private final java.util.function.Function<String, Boolean> isExpandedFunction;
+    private final Function<String, Boolean> isExpandedFunction;
 
     public CollapseIndicatorRenderer(FilteredNodeTableModel filteredModel,
-                                    java.util.function.Function<String, Boolean> isExpandedFunction) {
+                                    Function<String, Boolean> isExpandedFunction) {
         this.filteredModel = filteredModel;
         this.isExpandedFunction = isExpandedFunction;
     }
@@ -34,7 +37,7 @@ public class CollapseIndicatorRenderer extends DefaultTableCellRenderer {
             boolean isLastChild = filteredModel.isLastChild(node);
 
             // 构建树形前缀
-            String treePrefix = buildTreePrefix(node, depth, hasChildren, isExpanded, isLastChild);
+            String treePrefix = buildTreePrefix(depth, hasChildren, isExpanded, isLastChild);
 
             // 设置文本
             String number = value != null ? value.toString() : "";
@@ -48,7 +51,7 @@ public class CollapseIndicatorRenderer extends DefaultTableCellRenderer {
             }
 
             // 设置缩进
-            int indent = depth * 20;
+            int indent = depth * INDENT_PER_LEVEL;
             label.setBorder(BorderFactory.createEmptyBorder(0, indent + 5, 0, 0));
         }
 
@@ -58,11 +61,11 @@ public class CollapseIndicatorRenderer extends DefaultTableCellRenderer {
     /**
      * 构建树形前缀字符串
      */
-    public static String buildTreePrefix(TraceNode node, int depth, boolean hasChildren,
+    public static String buildTreePrefix(int depth, boolean hasChildren,
                                          boolean isExpanded, boolean isLastChild) {
         if (depth == 0) {
-            // 根节点
-            return hasChildren ? (isExpanded ? "▼" : "▶") : " ";
+            // 根节点：图标由 getTableCellRendererComponent 设置
+            return "";
         }
 
         StringBuilder prefix = new StringBuilder();
