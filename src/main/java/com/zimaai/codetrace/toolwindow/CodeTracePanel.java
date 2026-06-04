@@ -492,13 +492,10 @@ public final class CodeTracePanel {
         // 在表格中查找并选中节点
         FilteredNodeTableModel model = (FilteredNodeTableModel) editorPanel.nodeTable().getModel();
         if (model == null) return;
-        for (int i = 0; i < model.getRowCount(); i++) {
-            TraceNode n = model.getNodeAt(i);
-            if (n.id().equals(node.id())) {
-                editorPanel.nodeTable().setRowSelectionInterval(i, i);
-                editorPanel.nodeTable().scrollRectToVisible(editorPanel.nodeTable().getCellRect(i, 0, true));
-                return;
-            }
+        int idx = model.getVisibleIndex(node.id());
+        if (idx >= 0) {
+            editorPanel.nodeTable().setRowSelectionInterval(idx, idx);
+            editorPanel.nodeTable().scrollRectToVisible(editorPanel.nodeTable().getCellRect(idx, 0, true));
         }
     }
 
