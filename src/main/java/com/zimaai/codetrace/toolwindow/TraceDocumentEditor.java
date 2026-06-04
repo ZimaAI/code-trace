@@ -117,17 +117,6 @@ public final class TraceDocumentEditor {
         return nodeIds.contains(link.sourceNodeId()) && nodeIds.contains(link.targetNodeId());
     }
 
-    /**
-     * Returns true if both endpoints of the link exist in the document's node set.
-     * A "dangling" link references a node that has been deleted.
-     */
-    public static boolean isLinkValid(TraceLink link, TraceDocument doc) {
-        Set<String> nodeIds = doc.nodes().stream()
-                .map(TraceNode::id)
-                .collect(Collectors.toSet());
-        return isLinkValid(link, nodeIds);
-    }
-
     public TraceDocument link(TraceDocument document, String sourceNodeId, String targetNodeId, TraceLinkKind kind, Instant now) {
         Objects.requireNonNull(sourceNodeId, "sourceNodeId");
         Objects.requireNonNull(targetNodeId, "targetNodeId");
