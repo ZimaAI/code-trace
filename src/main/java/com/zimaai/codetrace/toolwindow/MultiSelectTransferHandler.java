@@ -9,10 +9,9 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import javax.swing.JComponent;
-import javax.swing.JTree;
+import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
-import javax.swing.tree.TreePath;
 
 public final class MultiSelectTransferHandler extends TransferHandler {
     private static final DataFlavor FLAVOR = DataFlavor.stringFlavor;
@@ -33,20 +32,20 @@ public final class MultiSelectTransferHandler extends TransferHandler {
 
     @Override
     protected Transferable createTransferable(JComponent c) {
-        JTree tree = (JTree) c;
-        TreePath[] paths = tree.getSelectionPaths();
-        if (paths == null || paths.length == 0) {
+        JTable table = (JTable) c;
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows == null || selectedRows.length == 0) {
             return null;
         }
 
+        NodeTableModel model = (NodeTableModel) table.getModel();
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < paths.length; i++) {
-            if (paths[i].getLastPathComponent() instanceof TraceNode node) {
-                if (i > 0) {
-                    sb.append(DELIMITER);
-                }
-                sb.append(node.id());
+        for (int i = 0; i < selectedRows.length; i++) {
+            TraceNode node = model.getNodeAt(selectedRows[i]);
+            if (i > 0) {
+                sb.append(DELIMITER);
             }
+            sb.append(node.id());
         }
 
         return new StringSelection(sb.toString());
@@ -54,18 +53,13 @@ public final class MultiSelectTransferHandler extends TransferHandler {
 
     @Override
     public boolean canImport(TransferSupport support) {
-        return support.isDrop() && support.getComponent() instanceof JTree;
+        return support.isDrop() && support.getComponent() instanceof JTable;
     }
 
     @Override
     public boolean importData(TransferSupport support) {
-        JTree tree = (JTree) support.getComponent();
-        JTree.DropLocation dropLocation = (JTree.DropLocation) support.getDropLocation();
-        TreePath targetPath = dropLocation.getPath();
-
-        if (targetPath == null || !(targetPath.getLastPathComponent() instanceof TraceNode targetNode)) {
-            return false;
-        }
+        JTable table = (JTable) support.getComponent();
+        JTable.DropLocation dropLocation = (JTable.DropLocation) support.getDropLocation();
 
         // 解析传输的数据
         String data;
@@ -78,26 +72,47 @@ public final class MultiSelectTransferHandler extends TransferHandler {
         String[] nodeIds = data.split(DELIMITER);
         Set<String> sourceIds = new HashSet<>(Arrays.asList(nodeIds));
 
+        // 获取目标行
+        int targetRow = dropLocation.getRow();
+        NodeTableModel model = (NodeTableModel) table.getModel();
+
+        // 如果拖拽到表格底部（空行），targetRow 可能等于 rowCount
+        if (targetRow < 0 || targetRow > model.getRowCount()) {
+            return false;
+        }
+
+        // 确定目标节点和新父节点
+        TraceNode targetNode;
+        String newParentId;
+        int insertIndex;
+
+        if (targetRow >= model.getRowCount()) {
+            // 拖拽到表格底部：成为根节点
+            targetNode = null;
+            newParentId = null;
+            insertIndex = model.getRowCount();
+        } else {
+            targetNode = model.getNodeAt(targetRow);
+            newParentId = targetNode.parentId();
+            insertIndex = targetRow;
+        }
+
         // 验证：不能拖拽到自身或子节点
         TraceDocument doc = controller.state().currentDocument();
         for (String sourceId : sourceIds) {
-            if (sourceId.equals(targetNode.id()) || isDescendantOf(targetNode, sourceId, doc)) {
+            if (targetNode != null && (sourceId.equals(targetNode.id()) || isDescendantOf(targetNode, sourceId, doc))) {
                 return false;
             }
         }
-
-        // 执行移动
-        String newParentId = targetNode.parentId();
-        int childIndex = dropLocation.getChildIndex();
 
         // 在 EDT 线程中执行移动操作
         SwingUtilities.invokeLater(() -> {
             try {
                 // 移动所有选中的节点
-                int currentIndex = childIndex >= 0 ? childIndex : 0;
+                int currentIndex = insertIndex;
                 for (String sourceId : sourceIds) {
-                    if (childIndex < 0) {
-                        controller.setParent(sourceId, newParentId);
+                    if (newParentId == null) {
+                        controller.setParent(sourceId, null);
                     } else {
                         controller.setParentAndIndex(sourceId, newParentId, currentIndex);
                         currentIndex++;

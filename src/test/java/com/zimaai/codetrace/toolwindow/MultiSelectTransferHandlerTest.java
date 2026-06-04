@@ -9,9 +9,9 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import javax.swing.JTree;
-import javax.swing.tree.TreePath;
+import javax.swing.JTable;
 import org.junit.jupiter.api.Test;
 
 class MultiSelectTransferHandlerTest {
@@ -23,18 +23,17 @@ class MultiSelectTransferHandlerTest {
                 new TraceNode("node-1", "n1", "", "", "", 0, "", "", ""),
                 new TraceNode("node-2", "n2", "", "", "", 0, "", "", ""),
                 new TraceNode("node-3", "n3", "", "", "", 0, "", "", "")));
-        TraceTreeModel model = new TraceTreeModel(() -> doc);
-        JTree tree = new JTree(model);
-        tree.setSelectionPaths(new TreePath[]{
-                new TreePath(new Object[]{TraceTreeModel.VIRTUAL_ROOT, doc.nodes().get(0)}),
-                new TreePath(new Object[]{TraceTreeModel.VIRTUAL_ROOT, doc.nodes().get(1)}),
-                new TreePath(new Object[]{TraceTreeModel.VIRTUAL_ROOT, doc.nodes().get(2)})
-        });
+        Map<String, String> numberMap = Map.of("node-1", "1", "node-2", "2", "node-3", "3");
+        NodeTableModel model = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        JTable table = new JTable(model);
+        table.setRowSelectionInterval(0, 0);
+        table.addRowSelectionInterval(1, 1);
+        table.addRowSelectionInterval(2, 2);
 
         MultiSelectTransferHandler handler = new MultiSelectTransferHandler(null, () -> {});
 
         // When
-        Transferable transferable = handler.createTransferable(tree);
+        Transferable transferable = handler.createTransferable(table);
 
         // Then
         assertNotNull(transferable);
@@ -47,14 +46,15 @@ class MultiSelectTransferHandlerTest {
         // Given
         TraceDocument doc = createDoc(List.of(
                 new TraceNode("node-1", "n1", "", "", "", 0, "", "", "")));
-        TraceTreeModel model = new TraceTreeModel(() -> doc);
-        JTree tree = new JTree(model);
+        Map<String, String> numberMap = Map.of("node-1", "1");
+        NodeTableModel model = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        JTable table = new JTable(model);
         // No selection
 
         MultiSelectTransferHandler handler = new MultiSelectTransferHandler(null, () -> {});
 
         // When
-        Transferable transferable = handler.createTransferable(tree);
+        Transferable transferable = handler.createTransferable(table);
 
         // Then
         assertEquals(null, transferable);
@@ -65,15 +65,15 @@ class MultiSelectTransferHandlerTest {
         // Given
         TraceDocument doc = createDoc(List.of(
                 new TraceNode("node-1", "n1", "", "", "", 0, "", "", "")));
-        TraceTreeModel model = new TraceTreeModel(() -> doc);
-        JTree tree = new JTree(model);
-        tree.setSelectionPath(
-                new TreePath(new Object[]{TraceTreeModel.VIRTUAL_ROOT, doc.nodes().get(0)}));
+        Map<String, String> numberMap = Map.of("node-1", "1");
+        NodeTableModel model = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        JTable table = new JTable(model);
+        table.setRowSelectionInterval(0, 0);
 
         MultiSelectTransferHandler handler = new MultiSelectTransferHandler(null, () -> {});
 
         // When
-        Transferable transferable = handler.createTransferable(tree);
+        Transferable transferable = handler.createTransferable(table);
 
         // Then
         assertNotNull(transferable);
