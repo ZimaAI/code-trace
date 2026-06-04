@@ -96,24 +96,10 @@ class TraceEditorPanelTest {
 
         // Check toolbar contains expand/collapse buttons
         JPanel toolbar = panel.nodeToolbar();
-        boolean hasExpandAllButton = false;
-        boolean hasCollapseAllButton = false;
+        java.util.List<java.awt.Component> components = java.util.Arrays.asList(toolbar.getComponents());
 
-        for (java.awt.Component comp : toolbar.getComponents()) {
-            if (comp instanceof JButton button) {
-                if (button.getToolTipText() != null) {
-                    if (button.getToolTipText().contains("Expand All")) {
-                        hasExpandAllButton = true;
-                    }
-                    if (button.getToolTipText().contains("Collapse All")) {
-                        hasCollapseAllButton = true;
-                    }
-                }
-            }
-        }
-
-        assertTrue(hasExpandAllButton, "Toolbar should contain an Expand All button");
-        assertTrue(hasCollapseAllButton, "Toolbar should contain a Collapse All button");
+        assertTrue(components.contains(panel.expandAllButton()), "Toolbar should contain the Expand All button");
+        assertTrue(components.contains(panel.collapseAllButton()), "Toolbar should contain the Collapse All button");
     }
 
     @Test
