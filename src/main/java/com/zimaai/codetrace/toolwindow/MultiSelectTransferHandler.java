@@ -2,6 +2,7 @@ package com.zimaai.codetrace.toolwindow;
 
 import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceNode;
+import java.awt.Point;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
@@ -16,6 +17,7 @@ import javax.swing.TransferHandler;
 public final class MultiSelectTransferHandler extends TransferHandler {
     private static final DataFlavor FLAVOR = DataFlavor.stringFlavor;
     private static final String DELIMITER = ",";
+    private static final int INDENT_THRESHOLD = 20;
 
     private final CodeTraceController controller;
     private final Runnable refreshUi;
@@ -93,8 +95,28 @@ public final class MultiSelectTransferHandler extends TransferHandler {
             insertIndex = model.getRowCount();
         } else {
             targetNode = model.getNodeAt(targetRow);
-            newParentId = targetNode.parentId();
-            insertIndex = targetRow;
+
+            // 检查拖拽位置：如果在目标节点左侧较远，成为目标节点的子节点
+            // 否则成为目标节点的兄弟节点
+            Point dropPoint = dropLocation.getDropPoint();
+            if (dropPoint != null) {
+                java.awt.Rectangle cellRect = table.getCellRect(targetRow, 0, true);
+                int deltaX = dropPoint.x - cellRect.x;
+
+                if (deltaX > INDENT_THRESHOLD) {
+                    // 成为目标节点的子节点
+                    newParentId = targetNode.id();
+                    insertIndex = 0; // 插入为第一个子节点
+                } else {
+                    // 成为目标节点的兄弟节点
+                    newParentId = targetNode.parentId();
+                    insertIndex = targetRow;
+                }
+            } else {
+                // 默认成为兄弟节点
+                newParentId = targetNode.parentId();
+                insertIndex = targetRow;
+            }
         }
 
         // 验证：不能拖拽到自身或子节点
@@ -111,12 +133,8 @@ public final class MultiSelectTransferHandler extends TransferHandler {
                 // 移动所有选中的节点
                 int currentIndex = insertIndex;
                 for (String sourceId : sourceIds) {
-                    if (newParentId == null) {
-                        controller.setParent(sourceId, null);
-                    } else {
-                        controller.setParentAndIndex(sourceId, newParentId, currentIndex);
-                        currentIndex++;
-                    }
+                    controller.setParentAndIndex(sourceId, newParentId, currentIndex);
+                    currentIndex++;
                 }
             } catch (IllegalArgumentException ignored) {
             }
