@@ -42,7 +42,7 @@ class CodeTraceControllerTest {
     }
 
     @Test
-    void linksMoveAndDeleteOperateOnWholePair() {
+    void moveAndDeleteOnlyAffectSingleNode_notLinkedNodes() {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
         storage.save("trace-2.json", documentWithThreeNodes());
         CodeTraceController controller = new CodeTraceController(storage, node -> true);
@@ -53,15 +53,17 @@ class CodeTraceControllerTest {
 
         assertEquals(1, controller.state().currentDocument().links().size());
 
+        // Move only node-2; node-1 stays in place
         int movedTo = controller.moveNodeOrPair("node-2", 1);
         assertEquals(2, movedTo);
         List<String> order = controller.state().currentDocument().nodes().stream()
                 .map(TraceNode::id)
                 .collect(Collectors.toList());
-        assertEquals(List.of("node-3", "node-1", "node-2"), order);
+        assertEquals(List.of("node-1", "node-3", "node-2"), order);
 
+        // Delete only node-1; node-2 stays
         controller.deleteNodeOrPair("node-1");
-        assertEquals(List.of("node-3"), controller.state().currentDocument().nodes().stream()
+        assertEquals(List.of("node-3", "node-2"), controller.state().currentDocument().nodes().stream()
                 .map(TraceNode::id)
                 .collect(Collectors.toList()));
         assertTrue(controller.state().currentDocument().links().isEmpty());
@@ -170,7 +172,8 @@ class CodeTraceControllerTest {
 
         controller.moveNodeOrPairToIndex("node-2", 0);
 
-        assertEquals(List.of("node-2", "node-3", "node-1"),
+        // Only node-2 moves; node-3 stays in place
+        assertEquals(List.of("node-2", "node-1", "node-3"),
                 controller.state().currentDocument().nodes().stream().map(TraceNode::id).toList());
     }
 
@@ -189,6 +192,33 @@ class CodeTraceControllerTest {
                 List.of(new TraceLink("link-1", "node-2", "node-3",
                         Instant.parse("2026-05-29T10:00:00Z"), TraceLinkKind.MANUAL)),
                 java.util.Set.of());
+    }
+
+    @Test
+    void moveNode_shouldOnlyMoveSingleNode_notLinkedNodes() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        TraceNode nodeA = new TraceNode("node-a", "A", "A#a", "a()", "A.java", 10, "JAVA", "", "A#a");
+        TraceNode nodeB = new TraceNode("node-b", "B", "B#b", "b()", "B.java", 20, "JAVA", "", "B#b");
+        TraceLink link = new TraceLink("link-1", "node-a", "node-b",
+                        Instant.parse("2026-05-29T10:00:00Z"), TraceLinkKind.MANUAL);
+        TraceDocument doc = new TraceDocument(
+                3, "trace-linked", "Linked", "",
+                Instant.parse("2026-05-29T10:00:00Z"),
+                Instant.parse("2026-05-29T10:00:00Z"),
+                List.of(nodeA, nodeB),
+                List.of(link),
+                java.util.Set.of());
+        storage.save("trace-linked.json", doc);
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("trace-linked.json");
+
+        // When: move only node A by +1
+        controller.moveNodeOrPair("node-a", 1);
+
+        // Then: only node A moved behind node B; node B stays at index 0
+        List<String> order = controller.state().currentDocument().nodes().stream()
+                .map(TraceNode::id).toList();
+        assertEquals(List.of("node-b", "node-a"), order);
     }
 
     @Test

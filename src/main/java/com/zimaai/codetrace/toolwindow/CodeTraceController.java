@@ -8,7 +8,6 @@ import com.zimaai.codetrace.storage.TraceStorageService;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -255,35 +254,16 @@ public final class CodeTraceController {
             return document;
         }
         List<TraceNode> nodes = new ArrayList<>(document.nodes());
-        List<String> affectedIds = linkedNodeIds(document.links(), nodeId);
-        List<Integer> sourceIndexes = new ArrayList<>();
-        for (String affectedId : affectedIds) {
-            int index = indexOfNode(nodes, affectedId);
-            if (index < 0) {
-                return document;
-            }
-            sourceIndexes.add(index);
+        int sourceIndex = indexOfNode(nodes, nodeId);
+        if (sourceIndex < 0) {
+            return document;
         }
-        List<Integer> targetIndexes = sourceIndexes.stream().map(index -> index + offset).toList();
-        for (Integer targetIndex : targetIndexes) {
-            if (targetIndex < 0 || targetIndex >= nodes.size()) {
-                return document;
-            }
+        int targetIndex = sourceIndex + offset;
+        if (targetIndex < 0 || targetIndex >= nodes.size()) {
+            return document;
         }
-        List<Integer> orderedIndexes = new ArrayList<>(sourceIndexes);
-        orderedIndexes.sort(Comparator.naturalOrder());
-        if (offset > 0) {
-            for (int i = orderedIndexes.size() - 1; i >= 0; i--) {
-                int source = orderedIndexes.get(i);
-                TraceNode moved = nodes.remove(source);
-                nodes.add(source + offset, moved);
-            }
-        } else {
-            for (int source : orderedIndexes) {
-                TraceNode moved = nodes.remove(source);
-                nodes.add(source + offset, moved);
-            }
-        }
+        TraceNode moved = nodes.remove(sourceIndex);
+        nodes.add(targetIndex, moved);
         return new TraceDocument(
                 3,
                 document.id(),
@@ -357,32 +337,19 @@ public final class CodeTraceController {
 
     private static TraceDocument moveInternalToIndex(TraceDocument document, String nodeId, int targetIndex, Instant now) {
         List<TraceNode> nodes = new ArrayList<>(document.nodes());
-        List<String> affectedIds = linkedNodeIds(document.links(), nodeId);
-        List<Integer> currentIndexes = new ArrayList<>();
-        for (String id : affectedIds) {
-            int idx = indexOfNode(nodes, id);
-            if (idx < 0) {
-                return document;
-            }
-            currentIndexes.add(idx);
+        int currentIndex = indexOfNode(nodes, nodeId);
+        if (currentIndex < 0) {
+            return document;
         }
-        int boundedTarget = Math.max(0, Math.min(targetIndex, nodes.size() - affectedIds.size()));
-        List<Integer> sortedForRemoval = new ArrayList<>(currentIndexes);
-        sortedForRemoval.sort(Comparator.reverseOrder());
-        List<TraceNode> removed = new ArrayList<>();
-        for (int idx : sortedForRemoval) {
-            removed.add(0, nodes.remove(idx));
+        int boundedTarget = Math.max(0, Math.min(targetIndex, nodes.size() - 1));
+        if (currentIndex == boundedTarget) {
+            return document;
         }
-        int adjustedTarget = boundedTarget;
-        for (int idx : currentIndexes) {
-            if (idx < boundedTarget) {
-                adjustedTarget--;
-            }
-        }
+        TraceNode moved = nodes.remove(currentIndex);
+        // After removal, indices shift for nodes after the removed one
+        int adjustedTarget = currentIndex < boundedTarget ? boundedTarget - 1 : boundedTarget;
         adjustedTarget = Math.max(0, Math.min(adjustedTarget, nodes.size()));
-        for (int i = 0; i < removed.size(); i++) {
-            nodes.add(adjustedTarget + i, removed.get(i));
-        }
+        nodes.add(adjustedTarget, moved);
         return new TraceDocument(
                 3,
                 document.id(),
@@ -407,9 +374,9 @@ public final class CodeTraceController {
     }
 
     private static TraceDocument deleteInternal(TraceDocument document, String nodeId, Instant now) {
-        List<String> affectedIds = linkedNodeIds(document.links(), nodeId);
+        Set<String> allRemoved = new HashSet<>();
+        allRemoved.add(nodeId);
         // Cascade: collect all descendant IDs
-        Set<String> allRemoved = new HashSet<>(affectedIds);
         collectDescendantIds(document.nodes(), allRemoved);
         List<TraceNode> nodes = document.nodes().stream()
                 .filter(node -> !allRemoved.contains(node.id()))
@@ -440,14 +407,5 @@ public final class CodeTraceController {
         if (result.size() > current.size()) {
             collectDescendantIds(nodes, result);
         }
-    }
-
-    private static List<String> linkedNodeIds(List<TraceLink> links, String nodeId) {
-        for (TraceLink link : links) {
-            if (link.sourceNodeId().equals(nodeId) || link.targetNodeId().equals(nodeId)) {
-                return List.of(link.sourceNodeId(), link.targetNodeId());
-            }
-        }
-        return List.of(nodeId);
     }
 }
