@@ -6,7 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.intellij.ui.JBColor;
+import com.zimaai.codetrace.model.TraceDocument;
+import com.zimaai.codetrace.model.TraceNode;
 import java.awt.LayoutManager;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import javax.swing.JButton;
 import org.junit.jupiter.api.Test;
 
@@ -77,5 +83,34 @@ class TraceEditorPanelTest {
         TraceEditorPanel panel = new TraceEditorPanel();
 
         assertNotNull(panel.nodeTable());
+    }
+
+    @Test
+    void testConfigureTableSetsFilteredModel() {
+        TraceEditorPanel panel = new TraceEditorPanel();
+        NodeTableModel sourceModel = createTestSourceModel();
+        TraceDocument document = createTestDocument();
+
+        panel.configureTableWithCollapseSupport(sourceModel, document);
+
+        assertNotNull(panel.getFilteredModel());
+        assertTrue(panel.nodeTable().getModel() instanceof FilteredNodeTableModel);
+    }
+
+    private NodeTableModel createTestSourceModel() {
+        List<TraceNode> nodes = List.of(
+            new TraceNode("1", "Root1", null, null, null, 0, null, null, null, null, null),
+            new TraceNode("2", "Child1", null, null, null, 0, null, null, null, "1", null)
+        );
+        Map<String, String> numberMap = Map.of("1", "1", "2", "1.1");
+        return new NodeTableModel(nodes, numberMap, List.of());
+    }
+
+    private TraceDocument createTestDocument() {
+        List<TraceNode> nodes = List.of(
+            new TraceNode("1", "Root1", null, null, null, 0, null, null, null, null, null),
+            new TraceNode("2", "Child1", null, null, null, 0, null, null, null, "1", null)
+        );
+        return new TraceDocument(3, "test", "test", "test", Instant.now(), Instant.now(), nodes, List.of(), Set.of());
     }
 }

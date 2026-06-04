@@ -11,6 +11,7 @@ import javax.swing.JTable;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
+import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceNode;
 import java.awt.Color;
 import java.awt.BorderLayout;
@@ -39,6 +40,9 @@ public final class TraceEditorPanel {
     private final JLabel linkStatus = new JLabel("Link source: none");
     private final JPanel nodeToolbar = new JPanel(new WrapLayout(WrapLayout.LEFT, 4, 4));
     private final JPanel root = new JPanel(new BorderLayout());
+    private FilteredNodeTableModel filteredModel;
+    private CollapseIndicatorRenderer collapseRenderer;
+    private final java.util.List<CollapseExpandListener> collapseExpandListeners = new java.util.ArrayList<>();
 
     public TraceEditorPanel() {
         configureTextArea(traceNote);
@@ -197,5 +201,77 @@ public final class TraceEditorPanel {
 
     JButton goToLinkedButton() {
         return goToLinkedButton;
+    }
+
+    /**
+     * 配置表格支持折叠功能
+     */
+    public void configureTableWithCollapseSupport(NodeTableModel sourceModel, TraceDocument document) {
+        // 创建过滤模型
+        filteredModel = new FilteredNodeTableModel(sourceModel, document);
+
+        // 设置表格模型
+        nodeTable.setModel(filteredModel);
+
+        // 创建并设置渲染器
+        collapseRenderer = new CollapseIndicatorRenderer(filteredModel,
+            nodeId -> document.expandedNodeIds().contains(nodeId));
+        nodeTable.getColumnModel().getColumn(0).setCellRenderer(collapseRenderer);
+
+        // 添加点击监听器处理折叠/展开
+        nodeTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                int row = nodeTable.rowAtPoint(e.getPoint());
+                int col = nodeTable.columnAtPoint(e.getPoint());
+
+                if (col == 0 && row >= 0 && row < filteredModel.getRowCount()) {
+                    TraceNode node = filteredModel.getNodeAt(row);
+                    boolean hasChildren = filteredModel.getSourceModel().hasChildren(node.id());
+
+                    if (hasChildren) {
+                        // 触发折叠/展开事件
+                        fireCollapseExpandEvent(node.id());
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 更新文档状态
+     */
+    public void updateDocument(TraceDocument document) {
+        if (filteredModel != null) {
+            filteredModel.setDocument(document);
+
+            // 更新渲染器的展开状态判断函数
+            if (collapseRenderer != null) {
+                collapseRenderer = new CollapseIndicatorRenderer(filteredModel,
+                    nodeId -> document.expandedNodeIds().contains(nodeId));
+                nodeTable.getColumnModel().getColumn(0).setCellRenderer(collapseRenderer);
+            }
+        }
+    }
+
+    /**
+     * 获取过滤模型
+     */
+    public FilteredNodeTableModel getFilteredModel() {
+        return filteredModel;
+    }
+
+    public interface CollapseExpandListener {
+        void onCollapseExpand(String nodeId);
+    }
+
+    public void addCollapseExpandListener(CollapseExpandListener listener) {
+        collapseExpandListeners.add(listener);
+    }
+
+    private void fireCollapseExpandEvent(String nodeId) {
+        for (CollapseExpandListener listener : collapseExpandListeners) {
+            listener.onCollapseExpand(nodeId);
+        }
     }
 }
