@@ -100,6 +100,27 @@ class LinkedNodeTreeCellRendererTest {
         assertTrue(text.length() < longTitle.length() + 10);
     }
 
+    @Test
+    void skipsDanglingLinkAndDoesNotApplyTargetRole() {
+        // n1 is the only node; link points to n1 as target but source "deleted-node" doesn't exist
+        TraceDocument doc = new TraceDocument(
+                3, "t1", "T1", "", Instant.now(), Instant.now(),
+                List.of(new TraceNode("n1", "remaining()", "", "", "", 0, "", "", "")),
+                List.of(new TraceLink("l1", "deleted-node", "n1", Instant.now(), TraceLinkKind.MANUAL)),
+                Set.of());
+        TraceTreeModel model = new TraceTreeModel(() -> doc);
+        tree.setModel(model);
+
+        LinkedNodeTreeCellRenderer renderer = new LinkedNodeTreeCellRenderer(() -> doc, () -> null, () -> null);
+        Component c = renderer.getTreeCellRendererComponent(tree, doc.nodes().get(0),
+                false, false, true, 0, false);
+        String text = ((JLabel) c).getText();
+        // Should NOT show target role prefix because the link is dangling
+        assertTrue(!text.contains(LinkedNodeTreeCellRenderer.ROLE_TARGET),
+                "Dangling link should not produce TARGET role, got: " + text);
+        assertEquals("remaining()", text);
+    }
+
     private static TraceDocument createDoc(List<TraceNode> nodes) {
         return new TraceDocument(3, "t1", "T1", "", Instant.now(), Instant.now(),
                 nodes, List.of(), Set.of());
