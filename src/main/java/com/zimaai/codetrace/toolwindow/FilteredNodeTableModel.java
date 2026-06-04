@@ -100,6 +100,10 @@ public class FilteredNodeTableModel extends AbstractTableModel {
      * 获取指定索引的节点
      */
     public TraceNode getNodeAt(int rowIndex) {
+        if (rowIndex < 0 || rowIndex >= visibleNodes.size()) {
+            throw new IndexOutOfBoundsException(
+                "Row index out of bounds: " + rowIndex + ", size: " + visibleNodes.size());
+        }
         return visibleNodes.get(rowIndex);
     }
 

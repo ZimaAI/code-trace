@@ -83,7 +83,6 @@ class FilteredNodeTableModelTest {
         // Expand Root1
         document = new TraceDocument(3, "test", "test", "test", Instant.now(), Instant.now(), nodes, List.of(), Set.of("1", "4"));
         filteredModel.setDocument(document);
-        filteredModel.rebuildVisibleNodes();
 
         assertEquals(4, filteredModel.getRowCount());
     }
