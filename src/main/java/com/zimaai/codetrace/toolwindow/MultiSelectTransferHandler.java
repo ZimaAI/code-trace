@@ -8,6 +8,7 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import javax.swing.JComponent;
 import javax.swing.JTable;
@@ -17,7 +18,7 @@ import javax.swing.TransferHandler;
 public final class MultiSelectTransferHandler extends TransferHandler {
     private static final DataFlavor FLAVOR = DataFlavor.stringFlavor;
     private static final String DELIMITER = ",";
-    private static final int INDENT_THRESHOLD = 20;
+    private static final int NAME_COLUMN_INDEX = 1; // 节点名称列
 
     private final CodeTraceController controller;
     private final Runnable refreshUi;
@@ -96,26 +97,33 @@ public final class MultiSelectTransferHandler extends TransferHandler {
         } else {
             targetNode = model.getNodeAt(targetRow);
 
-            // 检查拖拽位置：如果在目标节点左侧较远，成为目标节点的子节点
-            // 否则成为目标节点的兄弟节点
+            // 检查拖拽位置：如果在节点名称列右半部分，成为目标节点的子节点
+            // 如果在节点名称列左半部分，成为目标节点的兄弟节点
             Point dropPoint = dropLocation.getDropPoint();
             if (dropPoint != null) {
-                java.awt.Rectangle cellRect = table.getCellRect(targetRow, 0, true);
+                java.awt.Rectangle cellRect = table.getCellRect(targetRow, NAME_COLUMN_INDEX, true);
+                int columnWidth = cellRect.width;
+                int threshold = columnWidth / 2;
                 int deltaX = dropPoint.x - cellRect.x;
 
-                if (deltaX > INDENT_THRESHOLD) {
-                    // 成为目标节点的子节点
+                if (deltaX > threshold) {
+                    // 在节点名称列右半部分：成为目标节点的子节点
                     newParentId = targetNode.id();
                     insertIndex = 0; // 插入为第一个子节点
                 } else {
-                    // 成为目标节点的兄弟节点
+                    // 在节点名称列左半部分：成为目标节点的兄弟节点
                     newParentId = targetNode.parentId();
-                    insertIndex = targetRow;
+                    int siblingIndex = getSiblingIndex(model, targetNode);
+                    // 如果鼠标在单元格下半部分，插入到目标节点之后
+                    if (dropPoint.y > cellRect.y + cellRect.height / 2) {
+                        siblingIndex++;
+                    }
+                    insertIndex = siblingIndex;
                 }
             } else {
                 // 默认成为兄弟节点
                 newParentId = targetNode.parentId();
-                insertIndex = targetRow;
+                insertIndex = getSiblingIndex(model, targetNode);
             }
         }
 
@@ -142,6 +150,21 @@ public final class MultiSelectTransferHandler extends TransferHandler {
         });
 
         return true;
+    }
+
+    private static int getSiblingIndex(NodeTableModel model, TraceNode targetNode) {
+        String parentId = targetNode.parentId();
+        int siblingIndex = 0;
+        for (int i = 0; i < model.getRowCount(); i++) {
+            TraceNode node = model.getNodeAt(i);
+            if (Objects.equals(node.parentId(), parentId)) {
+                if (node.id().equals(targetNode.id())) {
+                    return siblingIndex;
+                }
+                siblingIndex++;
+            }
+        }
+        return siblingIndex;
     }
 
     private static boolean isDescendantOf(TraceNode node, String potentialAncestorId, TraceDocument doc) {
