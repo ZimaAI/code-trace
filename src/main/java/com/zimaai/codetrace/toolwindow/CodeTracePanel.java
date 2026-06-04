@@ -707,9 +707,13 @@ public final class CodeTracePanel {
 
     private LinkedNodes findAllLinkedNodes() {
         List<TraceLink> links = findAllLinksForSelectedNode();
+        TraceDocument document = controller.state().currentDocument();
         List<TraceNode> sources = new ArrayList<>();
         List<TraceNode> targets = new ArrayList<>();
         for (TraceLink link : links) {
+            if (document != null && !TraceDocumentEditor.isLinkValid(link, document)) {
+                continue;
+            }
             if (selectedNodeId.equals(link.targetNodeId())) {
                 TraceNode sourceNode = findNodeById(link.sourceNodeId());
                 if (sourceNode != null) {
@@ -730,16 +734,11 @@ public final class CodeTracePanel {
         if (selectedNodeId == null || controller.state().currentDocument() == null) {
             return false;
         }
-        return controller.state().currentDocument().links().stream()
-                .anyMatch(link -> {
-                    if (selectedNodeId.equals(link.sourceNodeId())) {
-                        return findNodeById(link.targetNodeId()) != null;
-                    }
-                    if (selectedNodeId.equals(link.targetNodeId())) {
-                        return findNodeById(link.sourceNodeId()) != null;
-                    }
-                    return false;
-                });
+        TraceDocument document = controller.state().currentDocument();
+        return document.links().stream()
+                .anyMatch(link -> TraceDocumentEditor.isLinkValid(link, document)
+                        && (selectedNodeId.equals(link.sourceNodeId())
+                                || selectedNodeId.equals(link.targetNodeId())));
     }
 
     private TraceNode findNodeById(String nodeId) {
