@@ -215,6 +215,31 @@ public final class CodeTraceController {
         persist(updated);
     }
 
+    /**
+     * 切换节点的展开状态
+     */
+    public void toggleNodeExpand(String nodeId, boolean expand) {
+        Objects.requireNonNull(nodeId, "nodeId");
+        TraceDocument updated = editor.toggleExpandedNode(requireDocument(), nodeId, expand, Instant.now());
+        persist(updated);
+    }
+
+    /**
+     * 展开所有有子节点的节点
+     */
+    public void expandAllNodes() {
+        TraceDocument updated = editor.expandAllNodes(requireDocument(), Instant.now());
+        persist(updated);
+    }
+
+    /**
+     * 折叠所有节点
+     */
+    public void collapseAllNodes() {
+        TraceDocument updated = editor.collapseAllNodes(requireDocument(), Instant.now());
+        persist(updated);
+    }
+
     private TraceDocument requireDocument() {
         return Objects.requireNonNull(state.currentDocument(), "currentDocument");
     }

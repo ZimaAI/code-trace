@@ -1,8 +1,10 @@
 package com.zimaai.codetrace.toolwindow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zimaai.codetrace.model.TraceDocument;
 import com.zimaai.codetrace.model.TraceLink;
 import com.zimaai.codetrace.model.TraceLinkKind;
@@ -322,6 +324,60 @@ class CodeTraceControllerTest {
         Set<String> expanded = controller.state().currentDocument().expandedNodeIds();
         // n4 survives — its expanded ID should remain; n1/n2/n3 should be removed
         assertEquals(Set.of("n4"), expanded);
+    }
+
+    @Test
+    void toggleNodeExpandAddsAndRemovesNodeId() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("expand-1.json", documentWithNestedNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("expand-1.json");
+
+        controller.toggleNodeExpand("n1", true);
+        assertTrue(controller.state().currentDocument().expandedNodeIds().contains("n1"));
+
+        controller.toggleNodeExpand("n1", false);
+        assertFalse(controller.state().currentDocument().expandedNodeIds().contains("n1"));
+    }
+
+    @Test
+    void expandAllNodesExpandsAllParentNodes() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("expand-2.json", documentWithNestedNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("expand-2.json");
+
+        controller.expandAllNodes();
+
+        Set<String> expanded = controller.state().currentDocument().expandedNodeIds();
+        assertTrue(expanded.contains("n1"));
+        assertTrue(expanded.contains("n2"));
+        // n3 has no children, should not be expanded
+        assertFalse(expanded.contains("n3"));
+    }
+
+    @Test
+    void collapseAllNodesClearsExpandedState() {
+        TraceDocument doc = new TraceDocument(
+                3, "expand-3", "Expand Test", "",
+                Instant.parse("2026-06-02T10:00:00Z"),
+                Instant.parse("2026-06-02T10:00:00Z"),
+                List.of(
+                        new TraceNode("n1", "root", "", "", "", 0, "", "", ""),
+                        new TraceNode("n2", "child", "", "", "", 0, "", "", "", "n1", (String) null)),
+                List.of(),
+                Set.of("n1"));
+
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("expand-4.json", doc);
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("expand-4.json");
+
+        assertTrue(controller.state().currentDocument().expandedNodeIds().contains("n1"));
+
+        controller.collapseAllNodes();
+
+        assertTrue(controller.state().currentDocument().expandedNodeIds().isEmpty());
     }
 
     private static TraceDocument documentWithNestedNodes() {
