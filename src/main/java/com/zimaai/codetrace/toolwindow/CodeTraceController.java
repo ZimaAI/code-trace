@@ -100,7 +100,7 @@ public final class CodeTraceController {
         return indexOfNode(updated.nodes(), resolveInsertedNodeId(updated, candidate));
     }
 
-    public void moveNodeOrPairToIndex(String nodeId, int targetIndex) {
+    public void moveNodeToIndex(String nodeId, int targetIndex) {
         TraceDocument updated = moveInternalToIndex(requireDocument(), nodeId, targetIndex, Instant.now());
         persist(updated);
     }
@@ -129,13 +129,13 @@ public final class CodeTraceController {
         }
     }
 
-    public int moveNodeOrPair(String nodeId, int offset) {
+    public int moveNode(String nodeId, int offset) {
         TraceDocument updated = moveInternal(requireDocument(), nodeId, offset, Instant.now());
         persist(updated);
         return indexOfNode(updated.nodes(), nodeId);
     }
 
-    public void deleteNodeOrPair(String nodeId) {
+    public void deleteNode(String nodeId) {
         TraceDocument updated = deleteInternal(requireDocument(), nodeId, Instant.now());
         persist(updated);
         if (nodeId.equals(state.pendingLinkSourceId())) {

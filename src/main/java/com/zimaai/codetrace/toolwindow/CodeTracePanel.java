@@ -415,7 +415,7 @@ public final class CodeTracePanel {
         String nodeId = selectedNodeId;
         selectedNodeId = null;
         controller.clearFocusedNodeId();
-        controller.deleteNodeOrPair(nodeId);
+        controller.deleteNode(nodeId);
         rebuildView();
     }
 
@@ -423,7 +423,7 @@ public final class CodeTracePanel {
         if (selectedNodeId == null) {
             return;
         }
-        controller.moveNodeOrPair(selectedNodeId, offset);
+        controller.moveNode(selectedNodeId, offset);
         rebuildView();
     }
 

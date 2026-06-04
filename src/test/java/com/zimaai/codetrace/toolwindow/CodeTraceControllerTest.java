@@ -54,7 +54,7 @@ class CodeTraceControllerTest {
         assertEquals(1, controller.state().currentDocument().links().size());
 
         // Move only node-2; node-1 stays in place
-        int movedTo = controller.moveNodeOrPair("node-2", 1);
+        int movedTo = controller.moveNode("node-2", 1);
         assertEquals(2, movedTo);
         List<String> order = controller.state().currentDocument().nodes().stream()
                 .map(TraceNode::id)
@@ -62,7 +62,7 @@ class CodeTraceControllerTest {
         assertEquals(List.of("node-1", "node-3", "node-2"), order);
 
         // Delete only node-1; node-2 stays
-        controller.deleteNodeOrPair("node-1");
+        controller.deleteNode("node-1");
         assertEquals(List.of("node-3", "node-2"), controller.state().currentDocument().nodes().stream()
                 .map(TraceNode::id)
                 .collect(Collectors.toList()));
@@ -170,7 +170,7 @@ class CodeTraceControllerTest {
         CodeTraceController controller = new CodeTraceController(storage, node -> true);
         controller.load("trace-1.json");
 
-        controller.moveNodeOrPairToIndex("node-2", 0);
+        controller.moveNodeToIndex("node-2", 0);
 
         // Only node-2 moves; node-3 stays in place
         assertEquals(List.of("node-2", "node-1", "node-3"),
@@ -213,7 +213,7 @@ class CodeTraceControllerTest {
         controller.load("trace-linked.json");
 
         // When: move only node A by +1
-        controller.moveNodeOrPair("node-a", 1);
+        controller.moveNode("node-a", 1);
 
         // Then: only node A moved behind node B; node B stays at index 0
         List<String> order = controller.state().currentDocument().nodes().stream()
@@ -228,7 +228,7 @@ class CodeTraceControllerTest {
         CodeTraceController controller = new CodeTraceController(storage, node -> true);
         controller.load("tree.json");
 
-        controller.deleteNodeOrPair("n1");
+        controller.deleteNode("n1");
         // n1, n2 (child of n1), n3 (child of n2) should all be deleted
         List<String> remaining = controller.state().currentDocument().nodes().stream()
                 .map(TraceNode::id).toList();
