@@ -28,7 +28,7 @@ class CodeTracePanelTreeTest {
                 List.of(
                         new TraceNode("n1", "root", "", "", "", 0, "", "", ""),
                         new TraceNode("n2", "child", "", "", "", 0, "", "", "", "n1", null)),
-                List.of(), Set.of());
+                List.of(), Set.of("n1")); // n1 expanded so child is visible
 
         CodeTracePanel panel = panelFor(doc);
         JTable table = table(panel);

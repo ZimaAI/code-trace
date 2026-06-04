@@ -147,7 +147,7 @@ public final class CodeTracePanel {
                     selectedNodeId = null;
                     controller.clearFocusedNodeId();
                 } else {
-                    NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
+                    FilteredNodeTableModel model = (FilteredNodeTableModel) editorPanel.nodeTable().getModel();
                     TraceNode selected = model.getNodeAt(selectedRow);
                     selectedNodeId = selected.id();
                     controller.setFocusedNodeId(selectedNodeId);
@@ -168,7 +168,7 @@ public final class CodeTracePanel {
                 if (event.getClickCount() == 2) {
                     int row = editorPanel.nodeTable().rowAtPoint(event.getPoint());
                     if (row >= 0) {
-                        NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
+                        FilteredNodeTableModel model = (FilteredNodeTableModel) editorPanel.nodeTable().getModel();
                         TraceNode node = model.getNodeAt(row);
                         controller.navigateToNode(node);
                     }
@@ -224,6 +224,15 @@ public final class CodeTracePanel {
         editorPanel.linkToHereButton().addActionListener(event -> linkToSelectedNode());
         editorPanel.unlinkButton().addActionListener(event -> unlinkSelectedNode());
         editorPanel.goToLinkedButton().addActionListener(event -> goToLinked());
+
+        // 折叠/展开事件监听
+        editorPanel.addCollapseExpandListener(nodeId -> {
+            TraceDocument doc = controller.state().currentDocument();
+            if (doc == null) return;
+            boolean isCurrentlyExpanded = doc.expandedNodeIds().contains(nodeId);
+            controller.toggleNodeExpand(nodeId, !isCurrentlyExpanded);
+            rebuildView();
+        });
     }
 
     private void addButton(JPanel toolbar, String label, Runnable action) {
@@ -481,7 +490,7 @@ public final class CodeTracePanel {
     private void selectAndNavigateToNode(TraceNode node) {
         controller.navigateToNode(node);
         // 在表格中查找并选中节点
-        NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
+        FilteredNodeTableModel model = (FilteredNodeTableModel) editorPanel.nodeTable().getModel();
         if (model == null) return;
         for (int i = 0; i < model.getRowCount(); i++) {
             TraceNode n = model.getNodeAt(i);
@@ -588,10 +597,9 @@ public final class CodeTracePanel {
         Map<String, String> numberMap = NodeNumberingService.calculateNumbers(document);
         // 创建表格模型
         NodeTableModel tableModel = new NodeTableModel(document.nodes(), numberMap, document.links());
-        editorPanel.nodeTable().setModel(tableModel);
-        // 设置渲染器
-        editorPanel.nodeTable().getColumnModel().getColumn(0).setCellRenderer(
-                new NodeNumberRenderer());
+        // 配置折叠支持（设置FilteredNodeTableModel和折叠渲染器）
+        editorPanel.configureTableWithCollapseSupport(tableModel, document);
+        // 设置其他列渲染器
         editorPanel.nodeTable().getColumnModel().getColumn(1).setCellRenderer(
                 new NodeNameRenderer(
                         () -> controller.state().currentDocument(),
@@ -662,7 +670,7 @@ public final class CodeTracePanel {
         }
         int selectedRow = editorPanel.nodeTable().getSelectedRow();
         if (selectedRow >= 0) {
-            NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
+            FilteredNodeTableModel model = (FilteredNodeTableModel) editorPanel.nodeTable().getModel();
             TraceNode node = model.getNodeAt(selectedRow);
             if (node.id().equals(selectedNodeId)) {
                 return node;
@@ -745,21 +753,19 @@ public final class CodeTracePanel {
             return;
         }
         controller.setFocusedNodeId(selectedNodeId);
-        // 在表格中查找并选中节点
-        NodeTableModel model = (NodeTableModel) editorPanel.nodeTable().getModel();
-        if (model == null) return;
-        for (int i = 0; i < model.getRowCount(); i++) {
-            TraceNode node = model.getNodeAt(i);
-            if (node.id().equals(selectedNodeId)) {
-                editorPanel.nodeTable().setRowSelectionInterval(i, i);
-                editorPanel.nodeTable().scrollRectToVisible(editorPanel.nodeTable().getCellRect(i, 0, true));
-                return;
-            }
+        // 使用过滤模型查找可见行
+        FilteredNodeTableModel filteredModel = editorPanel.getFilteredModel();
+        if (filteredModel == null) return;
+        int visibleIndex = filteredModel.getVisibleIndex(selectedNodeId);
+        if (visibleIndex >= 0) {
+            editorPanel.nodeTable().setRowSelectionInterval(visibleIndex, visibleIndex);
+            editorPanel.nodeTable().scrollRectToVisible(editorPanel.nodeTable().getCellRect(visibleIndex, 0, true));
+        } else {
+            // 节点不可见（被折叠）
+            selectedNodeId = null;
+            controller.clearFocusedNodeId();
+            editorPanel.nodeTable().clearSelection();
         }
-        // 未找到节点
-        selectedNodeId = null;
-        controller.clearFocusedNodeId();
-        editorPanel.nodeTable().clearSelection();
     }
 
     TraceEditorPanel editorPanel() {
