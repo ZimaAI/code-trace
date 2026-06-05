@@ -192,70 +192,96 @@ public final class TraceDocumentEditor {
                                            String newParentId, int targetIndex, Instant now) {
         validateParentChange(document, nodeId, newParentId);
         List<TraceNode> nodes = new ArrayList<>(document.nodes());
+
+        // 收集要移动的子树（节点及其所有子孙节点）
+        List<TraceNode> subtree = new ArrayList<>();
+        int sourceIndex = -1;
         for (int i = 0; i < nodes.size(); i++) {
             if (nodes.get(i).id().equals(nodeId)) {
-                TraceNode node = nodes.get(i);
-                String oldParentId = node.parentId();
-
-                // Compute the source node's sibling index before removal, so we can
-                // adjust targetIndex when the caller's index is based on the pre-removal list.
-                int sourceSiblingIdx = -1;
-                if (Objects.equals(oldParentId, newParentId)) {
-                    sourceSiblingIdx = 0;
-                    for (int k = 0; k < i; k++) {
-                        if (Objects.equals(nodes.get(k).parentId(), oldParentId)) {
-                            sourceSiblingIdx++;
-                        }
-                    }
-                }
-
-                TraceNode updated = new TraceNode(
-                        node.id(), node.displayName(), node.qualifiedName(), node.signature(),
-                        node.filePath(), node.line(), node.language(), node.note(),
-                        node.navigationHint(), newParentId, node.title());
-                nodes.remove(i);
-
-                if (targetIndex == -1) {
-                    // Insert after the parent node and all its existing children
-                    // (whichever comes last in the flat list).
-                    int insertIdx = nodes.size();
-                    for (int j = nodes.size() - 1; j >= 0; j--) {
-                        TraceNode n = nodes.get(j);
-                        if (Objects.equals(n.parentId(), newParentId) || n.id().equals(newParentId)) {
-                            insertIdx = j + 1;
-                            break;
-                        }
-                    }
-                    nodes.add(insertIdx, updated);
-                } else {
-                    // Adjust targetIndex if the source was a sibling that preceded the
-                    // target in the flat list — removal shifts sibling indices down by 1.
-                    int adjusted = targetIndex;
-                    if (sourceSiblingIdx >= 0 && sourceSiblingIdx < targetIndex) {
-                        adjusted--;
-                    }
-                    // Find the adjusted-th sibling and insert before it.
-                    int insertIdx = nodes.size(); // default: append at end
-                    int siblingsSeen = 0;
-                    for (int j = 0; j < nodes.size(); j++) {
-                        if (Objects.equals(nodes.get(j).parentId(), newParentId)) {
-                            if (siblingsSeen == adjusted) {
-                                insertIdx = j;
-                                break;
-                            }
-                            siblingsSeen++;
-                        }
-                    }
-                    nodes.add(insertIdx, updated);
-                }
+                sourceIndex = i;
                 break;
             }
         }
+        if (sourceIndex < 0) {
+            return document; // 节点不存在
+        }
+
+        // 计算源节点在兄弟中的索引（用于调整 targetIndex）
+        TraceNode sourceNode = nodes.get(sourceIndex);
+        String oldParentId = sourceNode.parentId();
+        int sourceSiblingIdx = -1;
+        if (Objects.equals(oldParentId, newParentId)) {
+            sourceSiblingIdx = 0;
+            for (int k = 0; k < sourceIndex; k++) {
+                if (Objects.equals(nodes.get(k).parentId(), oldParentId)) {
+                    sourceSiblingIdx++;
+                }
+            }
+        }
+
+        // 收集节点及其所有子孙节点
+        subtree.add(nodes.get(sourceIndex));
+        collectDescendants(nodes, nodeId, subtree);
+
+        // 从原列表中移除子树
+        nodes.removeAll(subtree);
+
+        // 更新节点的 parentId
+        TraceNode updatedSource = new TraceNode(
+                sourceNode.id(), sourceNode.displayName(), sourceNode.qualifiedName(), sourceNode.signature(),
+                sourceNode.filePath(), sourceNode.line(), sourceNode.language(), sourceNode.note(),
+                sourceNode.navigationHint(), newParentId, sourceNode.title());
+        subtree.set(0, updatedSource);
+
+        // 计算插入位置
+        int insertIdx;
+        if (targetIndex == -1) {
+            // 插入到父节点及其所有子节点之后
+            insertIdx = nodes.size();
+            for (int j = nodes.size() - 1; j >= 0; j--) {
+                TraceNode n = nodes.get(j);
+                if (Objects.equals(n.parentId(), newParentId) || n.id().equals(newParentId)) {
+                    insertIdx = j + 1;
+                    break;
+                }
+            }
+        } else {
+            // 调整 targetIndex：如果源节点是同父兄弟且在目标之前，需要减 1
+            int adjusted = targetIndex;
+            if (sourceSiblingIdx >= 0 && sourceSiblingIdx < targetIndex) {
+                adjusted--;
+            }
+            // 找到目标索引的兄弟节点
+            insertIdx = nodes.size();
+            int siblingsSeen = 0;
+            for (int j = 0; j < nodes.size(); j++) {
+                if (Objects.equals(nodes.get(j).parentId(), newParentId)) {
+                    if (siblingsSeen == adjusted) {
+                        insertIdx = j;
+                        break;
+                    }
+                    siblingsSeen++;
+                }
+            }
+        }
+
+        // 插入子树
+        nodes.addAll(insertIdx, subtree);
+
         return new TraceDocument(
                 3,
                 document.id(), document.name(), document.description(),
                 document.createdAt(), now,
                 List.copyOf(nodes), document.links(), document.expandedNodeIds());
+    }
+
+    private void collectDescendants(List<TraceNode> nodes, String parentId, List<TraceNode> result) {
+        for (TraceNode node : nodes) {
+            if (parentId.equals(node.parentId())) {
+                result.add(node);
+                collectDescendants(nodes, node.id(), result);
+            }
+        }
     }
 
     public TraceDocument setExpandedNodeIds(TraceDocument document, Set<String> expandedNodeIds, Instant now) {

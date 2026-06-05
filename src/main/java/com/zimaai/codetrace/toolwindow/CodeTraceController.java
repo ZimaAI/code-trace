@@ -284,12 +284,25 @@ public final class CodeTraceController {
         if (sourceIndex < 0) {
             return document;
         }
+
+        // 收集要移动的子树（节点及其所有子孙节点）
+        List<TraceNode> subtree = new ArrayList<>();
+        subtree.add(nodes.get(sourceIndex));
+        collectDescendants(nodes, nodeId, subtree);
+
+        // 从原列表中移除子树
+        nodes.removeAll(subtree);
+
+        // 计算目标位置
         int targetIndex = sourceIndex + offset;
         if (targetIndex < 0 || targetIndex >= nodes.size()) {
-            return document;
+            // 如果目标位置超出范围，添加到末尾
+            nodes.addAll(subtree);
+        } else {
+            // 在目标位置插入子树
+            nodes.addAll(targetIndex, subtree);
         }
-        TraceNode moved = nodes.remove(sourceIndex);
-        nodes.add(targetIndex, moved);
+
         return new TraceDocument(
                 3,
                 document.id(),
@@ -300,6 +313,15 @@ public final class CodeTraceController {
                 List.copyOf(nodes),
                 document.links(),
                 document.expandedNodeIds());
+    }
+
+    private static void collectDescendants(List<TraceNode> nodes, String parentId, List<TraceNode> result) {
+        for (TraceNode node : nodes) {
+            if (parentId.equals(node.parentId())) {
+                result.add(node);
+                collectDescendants(nodes, node.id(), result);
+            }
+        }
     }
 
     private TraceDocument insertOrReuseNodeAfter(TraceDocument document, TraceNode candidate, String afterNodeId, Instant now) {
@@ -367,15 +389,20 @@ public final class CodeTraceController {
         if (currentIndex < 0) {
             return document;
         }
-        int boundedTarget = Math.max(0, Math.min(targetIndex, nodes.size() - 1));
-        if (currentIndex == boundedTarget) {
-            return document;
-        }
-        TraceNode moved = nodes.remove(currentIndex);
-        // After removal, indices shift for nodes after the removed one
-        int adjustedTarget = currentIndex < boundedTarget ? boundedTarget - 1 : boundedTarget;
+
+        // 收集要移动的子树（节点及其所有子孙节点）
+        List<TraceNode> subtree = new ArrayList<>();
+        subtree.add(nodes.get(currentIndex));
+        collectDescendants(nodes, nodeId, subtree);
+
+        // 从原列表中移除子树
+        nodes.removeAll(subtree);
+
+        // 调整目标索引：如果源节点在目标之前，需要减 1 来补偿移除操作
+        int adjustedTarget = currentIndex < targetIndex ? targetIndex - 1 : targetIndex;
         adjustedTarget = Math.max(0, Math.min(adjustedTarget, nodes.size()));
-        nodes.add(adjustedTarget, moved);
+        nodes.addAll(adjustedTarget, subtree);
+
         return new TraceDocument(
                 3,
                 document.id(),
