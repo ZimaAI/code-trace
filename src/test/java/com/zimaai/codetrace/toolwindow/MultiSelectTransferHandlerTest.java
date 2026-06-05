@@ -24,7 +24,8 @@ class MultiSelectTransferHandlerTest {
                 new TraceNode("node-2", "n2", "", "", "", 0, "", "", ""),
                 new TraceNode("node-3", "n3", "", "", "", 0, "", "", "")));
         Map<String, String> numberMap = Map.of("node-1", "1", "node-2", "2", "node-3", "3");
-        NodeTableModel model = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        NodeTableModel sourceModel = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        FilteredNodeTableModel model = new FilteredNodeTableModel(sourceModel, doc);
         JTable table = new JTable(model);
         table.setRowSelectionInterval(0, 0);
         table.addRowSelectionInterval(1, 1);
@@ -47,7 +48,8 @@ class MultiSelectTransferHandlerTest {
         TraceDocument doc = createDoc(List.of(
                 new TraceNode("node-1", "n1", "", "", "", 0, "", "", "")));
         Map<String, String> numberMap = Map.of("node-1", "1");
-        NodeTableModel model = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        NodeTableModel sourceModel = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        FilteredNodeTableModel model = new FilteredNodeTableModel(sourceModel, doc);
         JTable table = new JTable(model);
         // No selection
 
@@ -66,7 +68,8 @@ class MultiSelectTransferHandlerTest {
         TraceDocument doc = createDoc(List.of(
                 new TraceNode("node-1", "n1", "", "", "", 0, "", "", "")));
         Map<String, String> numberMap = Map.of("node-1", "1");
-        NodeTableModel model = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        NodeTableModel sourceModel = new NodeTableModel(doc.nodes(), numberMap, doc.links());
+        FilteredNodeTableModel model = new FilteredNodeTableModel(sourceModel, doc);
         JTable table = new JTable(model);
         table.setRowSelectionInterval(0, 0);
 

@@ -41,7 +41,7 @@ public final class MultiSelectTransferHandler extends TransferHandler {
             return null;
         }
 
-        NodeTableModel model = (NodeTableModel) table.getModel();
+        FilteredNodeTableModel model = (FilteredNodeTableModel) table.getModel();
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < selectedRows.length; i++) {
             TraceNode node = model.getNodeAt(selectedRows[i]);
@@ -77,7 +77,7 @@ public final class MultiSelectTransferHandler extends TransferHandler {
 
         // 获取目标行
         int targetRow = dropLocation.getRow();
-        NodeTableModel model = (NodeTableModel) table.getModel();
+        FilteredNodeTableModel model = (FilteredNodeTableModel) table.getModel();
 
         // 如果拖拽到表格底部（空行），targetRow 可能等于 rowCount
         if (targetRow < 0 || targetRow > model.getRowCount()) {
@@ -152,7 +152,7 @@ public final class MultiSelectTransferHandler extends TransferHandler {
         return true;
     }
 
-    private static int getSiblingIndex(NodeTableModel model, TraceNode targetNode) {
+    private static int getSiblingIndex(FilteredNodeTableModel model, TraceNode targetNode) {
         String parentId = targetNode.parentId();
         int siblingIndex = 0;
         for (int i = 0; i < model.getRowCount(); i++) {
