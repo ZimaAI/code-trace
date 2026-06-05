@@ -46,6 +46,8 @@ public final class CodeTracePanel {
     private String persistedNodeNote = "";
     private String selectedNodeId;
     private JBSplitter split;
+    private int[] savedColumnWidths = null;
+    private boolean columnWidthsInitialized = false;
 
     public CodeTracePanel(CodeTraceController controller) {
         this.controller = controller;
@@ -136,6 +138,22 @@ public final class CodeTracePanel {
         editorPanel.nodeTable().setDropMode(javax.swing.DropMode.INSERT_ROWS);
         editorPanel.nodeTable().setTransferHandler(
                 new MultiSelectTransferHandler(controller, this::rebuildView));
+
+        // 添加列宽度监听器，保存用户调整的列宽度
+        editorPanel.nodeTable().getColumnModel().addColumnModelListener(new javax.swing.event.TableColumnModelListener() {
+            @Override
+            public void columnAdded(javax.swing.event.TableColumnModelEvent e) {}
+            @Override
+            public void columnRemoved(javax.swing.event.TableColumnModelEvent e) {}
+            @Override
+            public void columnMoved(javax.swing.event.TableColumnModelEvent e) {}
+            @Override
+            public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
+                saveColumnWidths();
+            }
+            @Override
+            public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {}
+        });
 
         editorPanel.nodeTable().getSelectionModel().addListSelectionListener(event -> {
             if (event.getValueIsAdjusting()) return;
@@ -619,14 +637,21 @@ public final class CodeTracePanel {
                         () -> controller.state().focusedNodeId(),
                         () -> controller.state().pendingLinkSourceId()));
         // 设置列宽比例 编号:节点名称:链接关系 = 1:5:1
-        int totalWidth = editorPanel.nodeTable().getWidth();
-        if (totalWidth <= 0) {
-            totalWidth = 420; // 默认总宽度
+        // 只在首次加载时设置默认宽度，之后恢复用户调整的宽度
+        if (!columnWidthsInitialized) {
+            int totalWidth = editorPanel.nodeTable().getWidth();
+            if (totalWidth <= 0) {
+                totalWidth = 420; // 默认总宽度
+            }
+            int unit = totalWidth / 7;
+            editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(unit);
+            editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(unit * 5);
+            editorPanel.nodeTable().getColumnModel().getColumn(2).setPreferredWidth(unit);
+            columnWidthsInitialized = true;
+            saveColumnWidths();
+        } else {
+            restoreColumnWidths();
         }
-        int unit = totalWidth / 7;
-        editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(unit);
-        editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(unit * 5);
-        editorPanel.nodeTable().getColumnModel().getColumn(2).setPreferredWidth(unit);
         restoreSelection(document.nodes());
         syncingNodeSelection = false;
         editorPanel.linkStatus().setText("Link source: "
@@ -634,6 +659,24 @@ public final class CodeTracePanel {
 
         syncSelectedNodeNote();
         refreshButtons();
+    }
+
+    private void saveColumnWidths() {
+        if (editorPanel.nodeTable().getColumnModel().getColumnCount() >= 3) {
+            savedColumnWidths = new int[] {
+                editorPanel.nodeTable().getColumnModel().getColumn(0).getWidth(),
+                editorPanel.nodeTable().getColumnModel().getColumn(1).getWidth(),
+                editorPanel.nodeTable().getColumnModel().getColumn(2).getWidth()
+            };
+        }
+    }
+
+    private void restoreColumnWidths() {
+        if (savedColumnWidths != null && editorPanel.nodeTable().getColumnModel().getColumnCount() >= 3) {
+            editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(savedColumnWidths[0]);
+            editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(savedColumnWidths[1]);
+            editorPanel.nodeTable().getColumnModel().getColumn(2).setPreferredWidth(savedColumnWidths[2]);
+        }
     }
 
     private void syncSelectedNodeNote() {
