@@ -48,6 +48,7 @@ public final class CodeTracePanel {
     private JBSplitter split;
     private int[] savedColumnWidths = null;
     private boolean columnWidthsInitialized = false;
+    private boolean restoringColumnWidths = false;
 
     public CodeTracePanel(CodeTraceController controller) {
         this.controller = controller;
@@ -149,7 +150,9 @@ public final class CodeTracePanel {
             public void columnMoved(javax.swing.event.TableColumnModelEvent e) {}
             @Override
             public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
-                saveColumnWidths();
+                if (!restoringColumnWidths) {
+                    saveColumnWidths();
+                }
             }
             @Override
             public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {}
@@ -673,20 +676,17 @@ public final class CodeTracePanel {
 
     private void restoreColumnWidths() {
         if (savedColumnWidths != null && editorPanel.nodeTable().getColumnModel().getColumnCount() >= 3) {
-            // 临时禁用自动调整模式，以便精确设置列宽
-            int originalResizeMode = editorPanel.nodeTable().getAutoResizeMode();
-            editorPanel.nodeTable().setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_OFF);
-
-            // 设置列宽
-            editorPanel.nodeTable().getColumnModel().getColumn(0).setWidth(savedColumnWidths[0]);
-            editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(savedColumnWidths[0]);
-            editorPanel.nodeTable().getColumnModel().getColumn(1).setWidth(savedColumnWidths[1]);
-            editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(savedColumnWidths[1]);
-            editorPanel.nodeTable().getColumnModel().getColumn(2).setWidth(savedColumnWidths[2]);
-            editorPanel.nodeTable().getColumnModel().getColumn(2).setPreferredWidth(savedColumnWidths[2]);
-
-            // 恢复原始自动调整模式
-            editorPanel.nodeTable().setAutoResizeMode(originalResizeMode);
+            restoringColumnWidths = true;
+            try {
+                editorPanel.nodeTable().getColumnModel().getColumn(0).setWidth(savedColumnWidths[0]);
+                editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(savedColumnWidths[0]);
+                editorPanel.nodeTable().getColumnModel().getColumn(1).setWidth(savedColumnWidths[1]);
+                editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(savedColumnWidths[1]);
+                editorPanel.nodeTable().getColumnModel().getColumn(2).setWidth(savedColumnWidths[2]);
+                editorPanel.nodeTable().getColumnModel().getColumn(2).setPreferredWidth(savedColumnWidths[2]);
+            } finally {
+                restoringColumnWidths = false;
+            }
         }
     }
 

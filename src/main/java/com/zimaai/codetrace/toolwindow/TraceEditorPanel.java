@@ -56,7 +56,8 @@ public final class TraceEditorPanel {
         nodeTable.setIntercellSpacing(new java.awt.Dimension(0, 0));
         nodeTable.setRowHeight(24);
         nodeTable.setSelectionMode(javax.swing.ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        nodeTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        // Keep column widths stable across model refreshes; users resize them manually.
+        nodeTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
         JPanel traceNotePanel = new JPanel(new BorderLayout());
         traceNotePanel.setBorder(JBUI.Borders.empty(0, 0, 6, 0));
