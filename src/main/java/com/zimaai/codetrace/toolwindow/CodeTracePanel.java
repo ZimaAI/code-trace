@@ -9,6 +9,8 @@ import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
 import java.awt.BorderLayout;
 import java.awt.Font;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +26,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
+import javax.swing.JTable;
+import javax.swing.JViewport;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
@@ -49,6 +53,8 @@ public final class CodeTracePanel {
     private int[] savedColumnWidths = null;
     private boolean columnWidthsInitialized = false;
     private boolean restoringColumnWidths = false;
+    private boolean adjustingFlexibleColumn = false;
+    private boolean rebuildingTableModel = false;
 
     public CodeTracePanel(CodeTraceController controller) {
         this.controller = controller;
@@ -150,12 +156,20 @@ public final class CodeTracePanel {
             public void columnMoved(javax.swing.event.TableColumnModelEvent e) {}
             @Override
             public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
-                if (!restoringColumnWidths) {
+                if (!restoringColumnWidths && !adjustingFlexibleColumn && !rebuildingTableModel) {
                     saveColumnWidths();
                 }
+                stretchLastColumnToViewport();
             }
             @Override
             public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {}
+        });
+
+        editorPanel.nodeTable().addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                stretchLastColumnToViewport();
+            }
         });
 
         editorPanel.nodeTable().getSelectionModel().addListSelectionListener(event -> {
@@ -621,42 +635,50 @@ public final class CodeTracePanel {
         syncingTraceNote = false;
 
         syncingNodeSelection = true;
-        // 计算编号
-        Map<String, String> numberMap = NodeNumberingService.calculateNumbers(document);
-        // 创建表格模型
-        NodeTableModel tableModel = new NodeTableModel(document.nodes(), numberMap, document.links());
-        // 配置折叠支持（设置FilteredNodeTableModel和折叠渲染器）
-        editorPanel.configureTableWithCollapseSupport(tableModel, document);
-        // 设置其他列渲染器
-        editorPanel.nodeTable().getColumnModel().getColumn(1).setCellRenderer(
-                new NodeNameRenderer(
-                        () -> controller.state().currentDocument(),
-                        () -> controller.state().focusedNodeId(),
-                        () -> controller.state().pendingLinkSourceId()));
-        editorPanel.nodeTable().getColumnModel().getColumn(2).setCellRenderer(
-                new LinkRelationColumnRenderer(
-                        () -> controller.state().currentDocument(),
-                        () -> numberMap,
-                        () -> controller.state().focusedNodeId(),
-                        () -> controller.state().pendingLinkSourceId()));
-        // 设置列宽比例 编号:节点名称:链接关系 = 1:5:1
-        // 只在首次加载时设置默认宽度，之后恢复用户调整的宽度
-        if (!columnWidthsInitialized) {
-            int totalWidth = editorPanel.nodeTable().getWidth();
-            if (totalWidth <= 0) {
-                totalWidth = 420; // 默认总宽度
+        rebuildingTableModel = true;
+        try {
+            // 计算编号
+            Map<String, String> numberMap = NodeNumberingService.calculateNumbers(document);
+            // 创建表格模型
+            NodeTableModel tableModel = new NodeTableModel(document.nodes(), numberMap, document.links());
+            // 配置折叠支持（设置FilteredNodeTableModel和折叠渲染器）
+            editorPanel.configureTableWithCollapseSupport(tableModel, document);
+            // 设置其他列渲染器
+            editorPanel.nodeTable().getColumnModel().getColumn(1).setCellRenderer(
+                    new NodeNameRenderer(
+                            () -> controller.state().currentDocument(),
+                            () -> controller.state().focusedNodeId(),
+                            () -> controller.state().pendingLinkSourceId()));
+            editorPanel.nodeTable().getColumnModel().getColumn(2).setResizable(false);
+            editorPanel.nodeTable().getColumnModel().getColumn(2).setCellRenderer(
+                    new LinkRelationColumnRenderer(
+                            () -> controller.state().currentDocument(),
+                            () -> numberMap,
+                            () -> controller.state().focusedNodeId(),
+                            () -> controller.state().pendingLinkSourceId()));
+            // 设置列宽比例 编号:节点名称:链接关系 = 1:5:1
+            // 只在首次加载时设置默认宽度，之后恢复用户调整的宽度
+            if (!columnWidthsInitialized) {
+                int totalWidth = editorPanel.nodeTable().getWidth();
+                if (totalWidth <= 0) {
+                    totalWidth = 420; // 默认总宽度
+                }
+                int unit = totalWidth / 7;
+                editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(unit);
+                editorPanel.nodeTable().getColumnModel().getColumn(0).setWidth(unit);
+                editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(unit * 5);
+                editorPanel.nodeTable().getColumnModel().getColumn(1).setWidth(unit * 5);
+                columnWidthsInitialized = true;
+                saveColumnWidths();
+                stretchLastColumnToViewport();
+            } else {
+                restoreColumnWidths();
             }
-            int unit = totalWidth / 7;
-            editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(unit);
-            editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(unit * 5);
-            editorPanel.nodeTable().getColumnModel().getColumn(2).setPreferredWidth(unit);
-            columnWidthsInitialized = true;
-            saveColumnWidths();
-        } else {
-            restoreColumnWidths();
+            restoreSelection(document.nodes());
+        } finally {
+            rebuildingTableModel = false;
+            syncingNodeSelection = false;
         }
-        restoreSelection(document.nodes());
-        syncingNodeSelection = false;
         editorPanel.linkStatus().setText("Link source: "
                 + (controller.state().pendingLinkSourceId() == null ? "none" : controller.state().pendingLinkSourceId()));
 
@@ -668,25 +690,51 @@ public final class CodeTracePanel {
         if (editorPanel.nodeTable().getColumnModel().getColumnCount() >= 3) {
             savedColumnWidths = new int[] {
                 editorPanel.nodeTable().getColumnModel().getColumn(0).getWidth(),
-                editorPanel.nodeTable().getColumnModel().getColumn(1).getWidth(),
-                editorPanel.nodeTable().getColumnModel().getColumn(2).getWidth()
+                editorPanel.nodeTable().getColumnModel().getColumn(1).getWidth()
             };
         }
     }
 
     private void restoreColumnWidths() {
-        if (savedColumnWidths != null && editorPanel.nodeTable().getColumnModel().getColumnCount() >= 3) {
+        if (savedColumnWidths != null
+                && savedColumnWidths.length >= 2
+                && editorPanel.nodeTable().getColumnModel().getColumnCount() >= 3) {
             restoringColumnWidths = true;
             try {
                 editorPanel.nodeTable().getColumnModel().getColumn(0).setWidth(savedColumnWidths[0]);
                 editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(savedColumnWidths[0]);
                 editorPanel.nodeTable().getColumnModel().getColumn(1).setWidth(savedColumnWidths[1]);
                 editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(savedColumnWidths[1]);
-                editorPanel.nodeTable().getColumnModel().getColumn(2).setWidth(savedColumnWidths[2]);
-                editorPanel.nodeTable().getColumnModel().getColumn(2).setPreferredWidth(savedColumnWidths[2]);
             } finally {
                 restoringColumnWidths = false;
             }
+            stretchLastColumnToViewport();
+        }
+    }
+
+    private void stretchLastColumnToViewport() {
+        JTable table = editorPanel.nodeTable();
+        if (table.getColumnModel().getColumnCount() < 3) {
+            return;
+        }
+        if (!(table.getParent() instanceof JViewport viewport)) {
+            return;
+        }
+        int viewportWidth = viewport.getWidth();
+        if (viewportWidth <= 0) {
+            return;
+        }
+
+        int firstWidth = table.getColumnModel().getColumn(0).getWidth();
+        int secondWidth = table.getColumnModel().getColumn(1).getWidth();
+        int lastWidth = Math.max(0, viewportWidth - firstWidth - secondWidth);
+
+        adjustingFlexibleColumn = true;
+        try {
+            table.getColumnModel().getColumn(2).setWidth(lastWidth);
+            table.getColumnModel().getColumn(2).setPreferredWidth(lastWidth);
+        } finally {
+            adjustingFlexibleColumn = false;
         }
     }
 
