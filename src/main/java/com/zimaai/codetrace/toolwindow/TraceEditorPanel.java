@@ -224,7 +224,8 @@ public final class TraceEditorPanel {
      * 配置表格支持折叠功能
      */
     public void configureTableWithCollapseSupport(NodeTableModel sourceModel, TraceDocument document) {
-        // 创建过滤模型
+        // 总是创建新的过滤模型，确保数据一致性
+        // 列宽保持通过 CodeTracePanel.restoreColumnWidths() 实现
         filteredModel = new FilteredNodeTableModel(sourceModel, document);
 
         // 设置表格模型
