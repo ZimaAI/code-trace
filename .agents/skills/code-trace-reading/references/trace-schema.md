@@ -20,20 +20,21 @@ Use this reference when creating or editing trace files for the `code-trace` IDE
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "trace-<uuid>",
   "name": "Feature or flow name",
   "description": "High-value summary of the traced behavior",
   "createdAt": "2026-05-29T07:14:30.923554500Z",
   "updatedAt": "2026-05-29T07:48:02.981368100Z",
   "nodes": [],
-  "links": []
+  "links": [],
+  "expandedNodeIds": []
 }
 ```
 
 ## Field Meanings
 
-- `schemaVersion`: Must be `2` for current writes.
+- `schemaVersion`: Must be `3` for current writes.
 - `id`: Stable trace id, normally prefixed with `trace-`.
 - `name`: Short human-readable title for the feature or scenario.
 - `description`: The narrative summary of the trace. Explain the chain, not just the topic.
@@ -41,6 +42,7 @@ Use this reference when creating or editing trace files for the `code-trace` IDE
 - `updatedAt`: Last update time in ISO-8601 UTC.
 - `nodes`: Ordered list of trace nodes.
 - `links`: Directed relationships between nodes.
+- `expandedNodeIds`: Set of node ids that should be expanded in the UI tree view. When creating new traces, this can be an empty array or omitted (serialization excludes null fields).
 
 ## Trace Node Shape
 
@@ -54,7 +56,9 @@ Use this reference when creating or editing trace files for the `code-trace` IDE
   "line": 49,
   "language": "JAVA",
   "note": "Detailed explanation for developers.",
-  "navigationHint": "PsiMethod:saveNodeNote"
+  "navigationHint": "PsiMethod:saveNodeNote",
+  "parentId": null,
+  "title": null
 }
 ```
 
@@ -69,6 +73,8 @@ Use this reference when creating or editing trace files for the `code-trace` IDE
 - `language`: Uppercase language name such as `JAVA`.
 - `note`: The most important explanatory field. Write the code-reading explanation here.
 - `navigationHint`: Plugin-facing navigation hint. Preserve existing values when updating traces.
+- `parentId`: Optional parent node id for tree-structured traces. Set to `null` for root-level nodes.
+- `title`: Optional display title override. Set to `null` to use `displayName`.
 
 ## Link Shape
 
@@ -108,7 +114,9 @@ For a kept cross-symbol call, record both the call-site statement and the callee
       "line": 42,
       "language": "JAVA",
       "note": "This line is the source node because it is the kept call-site statement in the main chain.",
-      "navigationHint": "PsiStatement:42"
+      "navigationHint": "PsiStatement:42",
+      "parentId": null,
+      "title": null
     },
     {
       "id": "node-target",
@@ -119,7 +127,9 @@ For a kept cross-symbol call, record both the call-site statement and the callee
       "line": 18,
       "language": "JAVA",
       "note": "This declaration is the target node reached by the kept call-site statement.",
-      "navigationHint": "PsiMethod:load"
+      "navigationHint": "PsiMethod:load",
+      "parentId": null,
+      "title": null
     }
   ],
   "links": [
@@ -130,7 +140,8 @@ For a kept cross-symbol call, record both the call-site statement and the callee
       "createdAt": "2026-05-29T07:19:50.042448800Z",
       "kind": "MANUAL"
     }
-  ]
+  ],
+  "expandedNodeIds": ["node-source"]
 }
 ```
 

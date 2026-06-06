@@ -5,6 +5,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const LINK_KINDS = new Set(["MANUAL", "DETECTED"]);
+const SUPPORTED_SCHEMA_VERSIONS = new Set([2, 3]);
 
 function fail(message) {
   console.error(message);
@@ -37,6 +38,12 @@ function ensureString(value, field, errors) {
   }
 }
 
+function ensureOptionalString(value, field, errors) {
+  if (value !== null && value !== undefined && typeof value !== "string") {
+    errors.push(`${field} must be a string or null`);
+  }
+}
+
 function ensureIsoInstant(value, field, errors) {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
     errors.push(`${field} must be an ISO-8601 timestamp string`);
@@ -62,6 +69,9 @@ function validateNode(node, index, ids, errors) {
   if (!Number.isInteger(node.line) || node.line < 1) {
     errors.push(`${prefix}.line must be an integer greater than or equal to 1`);
   }
+  // Schema v3 fields
+  ensureOptionalString(node.parentId, `${prefix}.parentId`, errors);
+  ensureOptionalString(node.title, `${prefix}.title`, errors);
   if (typeof node.id === "string") {
     if (ids.has(node.id)) {
       errors.push(`${prefix}.id duplicates an earlier node id: ${node.id}`);
@@ -112,8 +122,8 @@ function validateDocument(document) {
     return ["Document must be a JSON object"];
   }
 
-  if (document.schemaVersion !== 2) {
-    errors.push("schemaVersion must be 2");
+  if (!SUPPORTED_SCHEMA_VERSIONS.has(document.schemaVersion)) {
+    errors.push(`schemaVersion must be one of: ${Array.from(SUPPORTED_SCHEMA_VERSIONS).join(", ")}`);
   }
   ensureString(document.id, "id", errors);
   ensureString(document.name, "name", errors);
@@ -127,6 +137,12 @@ function validateDocument(document) {
   }
   if (!Array.isArray(document.links)) {
     errors.push("links must be an array");
+  }
+  // Schema v3 field: expandedNodeIds is optional
+  if (document.expandedNodeIds !== null && document.expandedNodeIds !== undefined) {
+    if (!Array.isArray(document.expandedNodeIds)) {
+      errors.push("expandedNodeIds must be an array if present");
+    }
   }
 
   const nodeIds = new Set();
@@ -204,7 +220,7 @@ function createDocument(options) {
   }
   const now = new Date().toISOString();
   const document = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: options.id || `trace-${crypto.randomUUID()}`,
     name: options.name,
     description: options.description || "",
@@ -212,6 +228,7 @@ function createDocument(options) {
     updatedAt: now,
     nodes: [],
     links: [],
+    expandedNodeIds: [],
   };
   const outputPath = createUniqueOutputPath(options);
   const targetPath = writeJson(outputPath, document);
@@ -237,7 +254,7 @@ function validateFile(options) {
   }
 
   console.log(
-    `Valid trace: ${inputPath} (${document.nodes.length} nodes, ${document.links.length} links)`
+    `Valid trace: ${inputPath} (schema v${document.schemaVersion}, ${document.nodes.length} nodes, ${document.links.length} links)`
   );
 }
 
