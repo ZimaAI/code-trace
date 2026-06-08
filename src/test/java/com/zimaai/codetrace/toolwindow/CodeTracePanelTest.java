@@ -3,6 +3,7 @@ package com.zimaai.codetrace.toolwindow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zimaai.codetrace.model.TraceDocument;
@@ -32,6 +33,7 @@ class CodeTracePanelTest {
         assertNull(findTopToolbarLabel("Set as Source"));
         assertNull(findTopToolbarLabel("Link To Here"));
         assertNull(findTopToolbarLabel("Unlink"));
+        assertNull(findTopToolbarLabel("Go to Linked Node"));
     }
 
     @Test
@@ -40,6 +42,16 @@ class CodeTracePanelTest {
 
         assertNotNull(editorPanel.saveTraceNoteButton());
         assertNotNull(editorPanel.saveNodeNoteButton());
+    }
+
+    @Test
+    void rowActionsAreNotInNodeToolbar() {
+        TraceEditorPanel editorPanel = new TraceEditorPanel();
+
+        assertFalse(toolbarContainsButtonText(editorPanel.nodeToolbar(), "Edit Node"));
+        assertFalse(toolbarContainsButtonText(editorPanel.nodeToolbar(), "Delete Node"));
+        assertFalse(toolbarContainsButtonText(editorPanel.nodeToolbar(), "Move Up"));
+        assertFalse(toolbarContainsButtonText(editorPanel.nodeToolbar(), "Move Down"));
     }
 
     @Test
@@ -135,5 +147,14 @@ class CodeTracePanelTest {
             }
         }
         return null;
+    }
+
+    private static boolean toolbarContainsButtonText(JPanel toolbar, String text) {
+        for (Component component : toolbar.getComponents()) {
+            if (component instanceof JButton button && text.equals(button.getText())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
