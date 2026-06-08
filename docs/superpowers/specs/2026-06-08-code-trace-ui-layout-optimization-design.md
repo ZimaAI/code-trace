@@ -1,7 +1,7 @@
 # code-trace UI 布局优化设计规格说明
 
 **日期**: 2026-06-08
-**状态**: 待书面审查
+**状态**: 已批准
 **范围**: 优化 Tool Window 的三栏布局、节点操作组织、行内常用操作、链接源可视化与操作反馈
 
 ## 1. 背景
@@ -205,7 +205,7 @@ Tool Window 采用三栏工作区，不改变数据模型。
 - 提供 Tooltip。
 - 避免破坏表格选择、拖拽和列宽逻辑。
 
-如果实现时需要新增类，应放在 `com.zimaai.codetrace.toolwindow` 包内。
+新增类应放在 `com.zimaai.codetrace.toolwindow` 包内。
 
 ## 9. 数据流
 
