@@ -330,7 +330,7 @@ private void configureNodeToolbar() {
 }
 ```
 
-删除 `editNodeButton`、`deleteNodeButton`、`moveUpButton`、`moveDownButton` 字段和对应 getter。同步删除这些旧按钮的 tooltip 设置和 `TraceEditorPanelTest` 中对旧按钮 icon/tooltip 的断言；这些断言在任务 3 的 `NodeRowActionsPanelTest` 中覆盖。
+保留 `editNodeButton`、`deleteNodeButton`、`moveUpButton`、`moveDownButton` 字段、getter 和 tooltip，作为任务 4 迁移 `CodeTracePanel` 事件绑定前的过渡 API。任务 2 只把这些按钮从 `nodeToolbar` 中移除，确保中间提交仍可编译；任务 4 接入行内操作后再删除旧 selected-action 绑定。
 
 - [ ] **步骤 7：运行测试验证通过**
 
