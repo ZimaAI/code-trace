@@ -13,7 +13,7 @@ public final class NodeTableModel extends AbstractTableModel {
     private final Map<String, String> numberMap;
     private final List<TraceLink> links;
 
-    private static final String[] COLUMN_NAMES = {"编号", "节点名称", "链接关系"};
+    private static final String[] COLUMN_NAMES = {"编号", "节点名称", "链接关系", "操作"};
 
     public NodeTableModel(List<TraceNode> nodes, Map<String, String> numberMap, List<TraceLink> links) {
         this.nodes = nodes;
@@ -28,7 +28,7 @@ public final class NodeTableModel extends AbstractTableModel {
 
     @Override
     public int getColumnCount() {
-        return 3;
+        return COLUMN_NAMES.length;
     }
 
     @Override
@@ -43,6 +43,7 @@ public final class NodeTableModel extends AbstractTableModel {
             case 0 -> numberMap.getOrDefault(node.id(), "");
             case 1 -> node;
             case 2 -> node; // 渲染器会处理链接关系
+            case 3 -> node;
             default -> null;
         };
     }
@@ -51,8 +52,7 @@ public final class NodeTableModel extends AbstractTableModel {
     public Class<?> getColumnClass(int columnIndex) {
         return switch (columnIndex) {
             case 0 -> String.class;
-            case 1 -> TraceNode.class;
-            case 2 -> TraceNode.class;
+            case 1, 2, 3 -> TraceNode.class;
             default -> Object.class;
         };
     }

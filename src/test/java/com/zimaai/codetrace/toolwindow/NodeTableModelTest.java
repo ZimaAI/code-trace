@@ -9,6 +9,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class NodeTableModelTest {
 
     @Test
+    void exposesActionColumnWithNodeValue() {
+        List<TraceNode> nodes = List.of(createNode("1", "Root", null));
+        NodeTableModel model = new NodeTableModel(nodes, Map.of("1", "1"), List.of());
+
+        assertEquals(4, model.getColumnCount());
+        assertEquals("操作", model.getColumnName(3));
+        assertEquals(TraceNode.class, model.getColumnClass(3));
+        assertEquals(nodes.get(0), model.getValueAt(0, 3));
+    }
+
+    @Test
     void testHasChildren_RootNodeWithChildren_ReturnsTrue() {
         List<TraceNode> nodes = List.of(
             createNode("1", "Root", null),

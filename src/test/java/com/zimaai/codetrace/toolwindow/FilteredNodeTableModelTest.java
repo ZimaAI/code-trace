@@ -30,6 +30,17 @@ class FilteredNodeTableModelTest {
     }
 
     @Test
+    void actionColumnReturnsVisibleNode() {
+        document = new TraceDocument(3, "test", "test", "test", Instant.now(), Instant.now(), nodes, List.of(), Set.of("1"));
+        FilteredNodeTableModel filteredModel = new FilteredNodeTableModel(sourceModel, document);
+
+        assertEquals(4, filteredModel.getColumnCount());
+        assertEquals("操作", filteredModel.getColumnName(3));
+        assertEquals(TraceNode.class, filteredModel.getColumnClass(3));
+        assertEquals(nodes.get(0), filteredModel.getValueAt(0, 3));
+    }
+
+    @Test
     void testGetRowCount_AllExpanded_ReturnsAllNodes() {
         // All expanded
         document = new TraceDocument(3, "test", "test", "test", Instant.now(), Instant.now(), nodes, List.of(), Set.of("1", "4"));

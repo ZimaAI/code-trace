@@ -174,6 +174,7 @@ public class FilteredNodeTableModel extends AbstractTableModel {
             case 0 -> sourceModel.getNumberMap().getOrDefault(node.id(), "");
             case 1 -> node;
             case 2 -> node;
+            case 3 -> node;
             default -> null;
         };
     }
