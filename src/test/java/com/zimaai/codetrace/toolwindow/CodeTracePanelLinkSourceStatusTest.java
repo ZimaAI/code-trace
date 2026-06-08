@@ -18,6 +18,7 @@ import java.util.Set;
 import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.border.CompoundBorder;
+import javax.swing.border.MatteBorder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,7 +58,14 @@ class CodeTracePanelLinkSourceStatusTest {
                 .getTableCellRendererComponent(table, table.getValueAt(0, 1), false, false, 0, 1);
 
         JLabel label = assertInstanceOf(JLabel.class, component);
-        assertInstanceOf(CompoundBorder.class, label.getBorder());
+        CompoundBorder border = assertInstanceOf(CompoundBorder.class, label.getBorder());
+        MatteBorder stripe = assertInstanceOf(MatteBorder.class, border.getOutsideBorder());
+        assertTrue(stripe.getBorderInsets(label).left >= 4);
+
+        Component nonSourceComponent = table.getColumnModel().getColumn(1).getCellRenderer()
+                .getTableCellRendererComponent(table, table.getValueAt(1, 1), false, false, 1, 1);
+        JLabel nonSourceLabel = assertInstanceOf(JLabel.class, nonSourceComponent);
+        assertFalse(nonSourceLabel.getBorder() instanceof CompoundBorder);
     }
 
     @Test

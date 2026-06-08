@@ -115,6 +115,10 @@ public final class CodeTraceController {
         state.setPendingLinkSourceId(nodeId);
     }
 
+    public void clearPendingLinkSource() {
+        state.clearPendingLinkSource();
+    }
+
     public void linkPendingSourceTo(String targetNodeId, TraceLinkKind kind) {
         String sourceNodeId = Objects.requireNonNull(state.pendingLinkSourceId(), "pendingLinkSourceId");
         TraceDocument updated = editor.link(requireDocument(), sourceNodeId, targetNodeId, kind, Instant.now());

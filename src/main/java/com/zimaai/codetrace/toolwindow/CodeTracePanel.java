@@ -713,7 +713,7 @@ public final class CodeTracePanel {
         String pendingSourceId = controller.state().pendingLinkSourceId();
         if (pendingSourceId != null
                 && document.nodes().stream().noneMatch(node -> node.id().equals(pendingSourceId))) {
-            controller.state().clearPendingLinkSource();
+            controller.clearPendingLinkSource();
         }
     }
 
