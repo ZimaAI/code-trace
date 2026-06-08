@@ -57,6 +57,7 @@ public final class CodeTracePanel {
     private boolean restoringColumnWidths = false;
     private boolean adjustingFlexibleColumn = false;
     private boolean rebuildingTableModel = false;
+    private Map<String, String> currentNumberMap = Map.of();
     private Predicate<TraceNode> confirmNodeDelete = node -> JOptionPane.showConfirmDialog(
             root,
             "Delete node " + node.displayName() + "?",
@@ -637,10 +638,13 @@ public final class CodeTracePanel {
             editorPanel.nodeNote().setText("");
             syncingNodeNote = false;
             persistedNodeNote = "";
-            editorPanel.linkStatus().setText("Link source: none");
+            currentNumberMap = Map.of();
+            updateLinkStatus();
             refreshButtons();
             return;
         }
+
+        clearInvalidPendingLinkSource(document);
 
         if (controller.state().currentFileName() != null) {
             fileListPanel.list().setSelectedValue(controller.state().currentFileName(), true);
@@ -656,6 +660,7 @@ public final class CodeTracePanel {
         try {
             // 计算编号
             Map<String, String> numberMap = NodeNumberingService.calculateNumbers(document);
+            currentNumberMap = numberMap;
             // 创建表格模型
             NodeTableModel tableModel = new NodeTableModel(document.nodes(), numberMap, document.links());
             // 配置折叠支持（设置FilteredNodeTableModel和折叠渲染器）
@@ -698,11 +703,28 @@ public final class CodeTracePanel {
             rebuildingTableModel = false;
             syncingNodeSelection = false;
         }
-        editorPanel.linkStatus().setText("Link source: "
-                + (controller.state().pendingLinkSourceId() == null ? "none" : controller.state().pendingLinkSourceId()));
+        updateLinkStatus();
 
         syncSelectedNodeNote();
         refreshButtons();
+    }
+
+    private void clearInvalidPendingLinkSource(TraceDocument document) {
+        String pendingSourceId = controller.state().pendingLinkSourceId();
+        if (pendingSourceId != null
+                && document.nodes().stream().noneMatch(node -> node.id().equals(pendingSourceId))) {
+            controller.state().clearPendingLinkSource();
+        }
+    }
+
+    private void updateLinkStatus() {
+        TraceNode source = findNodeById(controller.state().pendingLinkSourceId());
+        if (source == null) {
+            editorPanel.linkStatus().setText("链接源：未设置，请先选中节点并点击 Set as Source");
+            return;
+        }
+        String number = currentNumberMap.getOrDefault(source.id(), "?");
+        editorPanel.linkStatus().setText("链接源：#" + number + " " + source.displayName());
     }
 
     private void configureActionColumn() {
@@ -975,7 +997,14 @@ public final class CodeTracePanel {
             }
 
             label.setOpaque(true);
-            label.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 4, 3, 4));
+            javax.swing.border.Border padding = javax.swing.BorderFactory.createEmptyBorder(3, 4, 3, 4);
+            if (node.id().equals(pendingSourceSupplier.get())) {
+                javax.swing.border.Border stripe = javax.swing.BorderFactory.createMatteBorder(
+                        0, 4, 0, 0, new com.intellij.ui.JBColor(0x3D7DCC, 0x4C8EDA));
+                label.setBorder(javax.swing.BorderFactory.createCompoundBorder(stripe, padding));
+            } else {
+                label.setBorder(padding);
+            }
 
             StringBuilder prefix = new StringBuilder();
 
