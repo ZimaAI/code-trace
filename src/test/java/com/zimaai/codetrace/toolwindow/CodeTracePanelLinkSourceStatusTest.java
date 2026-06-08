@@ -77,8 +77,28 @@ class CodeTracePanelLinkSourceStatusTest {
 
         clickRowAction(panel, 0, NodeRowAction.DELETE);
 
+        panel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
         assertFalse(panel.editorPanel().linkToHereButton().isEnabled());
-        assertTrue(panel.editorPanel().linkStatus().getText().contains("链接源：未设置"));
+        assertTrue(panel.editorPanel().linkStatus().getText().contains("节点已删除"));
+    }
+
+    @Test
+    void saveTraceNoteShowsFeedback() {
+        CodeTracePanel panel = panelFor(documentWithTwoNodes());
+
+        panel.editorPanel().traceNote().setText("updated");
+        panel.editorPanel().saveTraceNoteButton().doClick();
+
+        assertTrue(panel.editorPanel().linkStatus().getText().contains("Trace Note 已保存"));
+    }
+
+    @Test
+    void moveRowActionShowsFeedback() {
+        CodeTracePanel panel = panelFor(documentWithTwoNodes());
+
+        clickRowAction(panel, 0, NodeRowAction.MOVE_DOWN);
+
+        assertTrue(panel.editorPanel().linkStatus().getText().contains("节点已下移"));
     }
 
     private CodeTracePanel panelFor(TraceDocument document) {

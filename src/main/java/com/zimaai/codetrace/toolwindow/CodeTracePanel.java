@@ -394,6 +394,7 @@ public final class CodeTracePanel {
         }
         controller.saveDescription(editorPanel.traceNote().getText());
         rebuildView();
+        showFeedback("Trace Note 已保存");
     }
 
     private void saveNodeNote() {
@@ -402,6 +403,7 @@ public final class CodeTracePanel {
         }
         controller.saveNodeNote(selectedNodeId, editorPanel.nodeNote().getText());
         rebuildView();
+        showFeedback("Node Note 已保存");
     }
 
     private void setSelectedAsSource() {
@@ -420,8 +422,11 @@ public final class CodeTracePanel {
             controller.linkPendingSourceTo(selectedNodeId, TraceLinkKind.MANUAL);
         } catch (IllegalArgumentException exception) {
             JOptionPane.showMessageDialog(root, exception.getMessage());
+            rebuildView();
+            return;
         }
         rebuildView();
+        showFeedback("链接已创建");
     }
 
     private void unlinkSelectedNode() {
@@ -430,6 +435,7 @@ public final class CodeTracePanel {
         }
         controller.unlinkNode(selectedNodeId);
         rebuildView();
+        showFeedback("链接已取消");
     }
 
     private void handleRowAction(NodeRowAction action, TraceNode node) {
@@ -475,6 +481,7 @@ public final class CodeTracePanel {
         controller.clearFocusedNodeId();
         controller.deleteNode(node.id());
         rebuildView();
+        showFeedback("节点已删除");
     }
 
     private void moveNode(TraceNode node, int offset) {
@@ -484,6 +491,7 @@ public final class CodeTracePanel {
         selectedNodeId = node.id();
         controller.moveNode(node.id(), offset);
         rebuildView();
+        showFeedback(offset < 0 ? "节点已上移" : "节点已下移");
     }
 
     private void goToLinked() {
@@ -725,6 +733,10 @@ public final class CodeTracePanel {
         }
         String number = currentNumberMap.getOrDefault(source.id(), "?");
         editorPanel.linkStatus().setText("链接源：#" + number + " " + source.displayName());
+    }
+
+    private void showFeedback(String message) {
+        editorPanel.linkStatus().setText(message);
     }
 
     private void configureActionColumn() {
