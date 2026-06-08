@@ -643,6 +643,7 @@ public final class CodeTracePanel {
             NodeTableModel tableModel = new NodeTableModel(document.nodes(), numberMap, document.links());
             // 配置折叠支持（设置FilteredNodeTableModel和折叠渲染器）
             editorPanel.configureTableWithCollapseSupport(tableModel, document);
+            hidePendingActionColumnUntilRowActionsAreInstalled();
             // 设置其他列渲染器
             editorPanel.nodeTable().getColumnModel().getColumn(1).setCellRenderer(
                     new NodeNameRenderer(
@@ -684,6 +685,13 @@ public final class CodeTracePanel {
 
         syncSelectedNodeNote();
         refreshButtons();
+    }
+
+    private void hidePendingActionColumnUntilRowActionsAreInstalled() {
+        javax.swing.table.TableColumnModel columnModel = editorPanel.nodeTable().getColumnModel();
+        if (columnModel.getColumnCount() > 3) {
+            columnModel.removeColumn(columnModel.getColumn(3));
+        }
     }
 
     private void saveColumnWidths() {

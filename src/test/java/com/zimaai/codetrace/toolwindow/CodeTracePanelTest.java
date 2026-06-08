@@ -53,6 +53,16 @@ class CodeTracePanelTest {
         assertEquals(toolbar, toggleButton.getParent());
     }
 
+    @Test
+    void hidesActionModelColumnUntilRowActionUiIsInstalled() throws Exception {
+        CodeTracePanel panel = panelFor(documentWithOneNode());
+        TraceEditorPanel editorPanel = editorPanel(panel);
+
+        assertEquals(4, editorPanel.nodeTable().getModel().getColumnCount());
+        assertEquals(3, editorPanel.nodeTable().getColumnModel().getColumnCount());
+        assertEquals("链接关系", editorPanel.nodeTable().getColumnModel().getColumn(2).getHeaderValue());
+    }
+
     private static String findTopToolbarLabel(String label) {
         return CodeTracePanel.topToolbarButtonLabels().stream()
                 .filter(label::equals)

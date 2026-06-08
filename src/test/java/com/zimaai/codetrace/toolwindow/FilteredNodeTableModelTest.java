@@ -31,13 +31,13 @@ class FilteredNodeTableModelTest {
 
     @Test
     void actionColumnReturnsVisibleNode() {
-        document = new TraceDocument(3, "test", "test", "test", Instant.now(), Instant.now(), nodes, List.of(), Set.of("1"));
         FilteredNodeTableModel filteredModel = new FilteredNodeTableModel(sourceModel, document);
 
+        assertEquals(2, filteredModel.getRowCount());
         assertEquals(4, filteredModel.getColumnCount());
         assertEquals("操作", filteredModel.getColumnName(3));
         assertEquals(TraceNode.class, filteredModel.getColumnClass(3));
-        assertEquals(nodes.get(0), filteredModel.getValueAt(0, 3));
+        assertEquals(nodes.get(3), filteredModel.getValueAt(1, 3));
     }
 
     @Test
