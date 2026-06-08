@@ -13,10 +13,11 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.JButton;
@@ -55,6 +56,11 @@ public final class CodeTracePanel {
     private boolean restoringColumnWidths = false;
     private boolean adjustingFlexibleColumn = false;
     private boolean rebuildingTableModel = false;
+    private Predicate<TraceNode> confirmNodeDelete = node -> JOptionPane.showConfirmDialog(
+            root,
+            "Delete node " + node.displayName() + "?",
+            "Confirm Delete",
+            JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION;
 
     public CodeTracePanel(CodeTraceController controller) {
         this.controller = controller;
@@ -251,10 +257,6 @@ public final class CodeTracePanel {
     }
 
     private void wireNodeActions() {
-        editorPanel.editNodeButton().addActionListener(event -> editSelectedNode());
-        editorPanel.deleteNodeButton().addActionListener(event -> deleteSelectedNode());
-        editorPanel.moveUpButton().addActionListener(event -> moveSelectedNode(-1));
-        editorPanel.moveDownButton().addActionListener(event -> moveSelectedNode(1));
         editorPanel.setAsSourceButton().addActionListener(event -> setSelectedAsSource());
         editorPanel.linkToHereButton().addActionListener(event -> linkToSelectedNode());
         editorPanel.unlinkButton().addActionListener(event -> unlinkSelectedNode());
@@ -428,8 +430,22 @@ public final class CodeTracePanel {
         rebuildView();
     }
 
-    private void editSelectedNode() {
-        TraceNode existing = findSelectedNode();
+    private void handleRowAction(NodeRowAction action, TraceNode node) {
+        selectNode(node);
+        switch (action) {
+            case EDIT -> editNode(node);
+            case DELETE -> deleteNode(node);
+            case MOVE_UP -> moveNode(node, -1);
+            case MOVE_DOWN -> moveNode(node, 1);
+        }
+    }
+
+    private void selectNode(TraceNode node) {
+        selectedNodeId = node.id();
+        controller.setFocusedNodeId(selectedNodeId);
+    }
+
+    private void editNode(TraceNode existing) {
         if (existing == null) return;
         NodeInput input = showNodeDialog("Edit Node", existing);
         if (input == null) return;
@@ -449,22 +465,22 @@ public final class CodeTracePanel {
         rebuildView();
     }
 
-    private void deleteSelectedNode() {
-        if (selectedNodeId == null) {
+    private void deleteNode(TraceNode node) {
+        if (node == null || !confirmNodeDelete.test(node)) {
             return;
         }
-        String nodeId = selectedNodeId;
         selectedNodeId = null;
         controller.clearFocusedNodeId();
-        controller.deleteNode(nodeId);
+        controller.deleteNode(node.id());
         rebuildView();
     }
 
-    private void moveSelectedNode(int offset) {
-        if (selectedNodeId == null) {
+    private void moveNode(TraceNode node, int offset) {
+        if (node == null) {
             return;
         }
-        controller.moveNode(selectedNodeId, offset);
+        selectedNodeId = node.id();
+        controller.moveNode(node.id(), offset);
         rebuildView();
     }
 
@@ -643,7 +659,6 @@ public final class CodeTracePanel {
             NodeTableModel tableModel = new NodeTableModel(document.nodes(), numberMap, document.links());
             // 配置折叠支持（设置FilteredNodeTableModel和折叠渲染器）
             editorPanel.configureTableWithCollapseSupport(tableModel, document);
-            hidePendingActionColumnUntilRowActionsAreInstalled();
             // 设置其他列渲染器
             editorPanel.nodeTable().getColumnModel().getColumn(1).setCellRenderer(
                     new NodeNameRenderer(
@@ -657,6 +672,10 @@ public final class CodeTracePanel {
                             () -> numberMap,
                             () -> controller.state().focusedNodeId(),
                             () -> controller.state().pendingLinkSourceId()));
+            editorPanel.nodeTable().getColumnModel().getColumn(3).setResizable(false);
+            editorPanel.nodeTable().getColumnModel().getColumn(3).setCellRenderer(new NodeRowActionsRenderer());
+            editorPanel.nodeTable().getColumnModel().getColumn(3).setCellEditor(
+                    new NodeRowActionsEditor(this::handleRowAction));
             // 设置列宽比例 编号:节点名称:链接关系 = 1:5:1
             // 只在首次加载时设置默认宽度，之后恢复用户调整的宽度
             if (!columnWidthsInitialized) {
@@ -685,13 +704,6 @@ public final class CodeTracePanel {
 
         syncSelectedNodeNote();
         refreshButtons();
-    }
-
-    private void hidePendingActionColumnUntilRowActionsAreInstalled() {
-        javax.swing.table.TableColumnModel columnModel = editorPanel.nodeTable().getColumnModel();
-        if (columnModel.getColumnCount() > 3) {
-            columnModel.removeColumn(columnModel.getColumn(3));
-        }
     }
 
     private void saveColumnWidths() {
@@ -887,6 +899,10 @@ public final class CodeTracePanel {
 
     TraceEditorPanel editorPanel() {
         return editorPanel;
+    }
+
+    void setConfirmNodeDeleteForTest(Predicate<TraceNode> confirmNodeDelete) {
+        this.confirmNodeDelete = Objects.requireNonNull(confirmNodeDelete, "confirmNodeDelete");
     }
 
     static List<String> topToolbarButtonLabels() {

@@ -10,6 +10,7 @@ import com.zimaai.codetrace.model.TraceLinkKind;
 import com.zimaai.codetrace.model.TraceNode;
 import com.zimaai.codetrace.storage.TraceJsonMapper;
 import com.zimaai.codetrace.storage.TraceStorageService;
+import java.awt.Component;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.nio.file.Path;
@@ -17,6 +18,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JButton;
+import javax.swing.JTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -66,7 +68,8 @@ class CodeTracePanelNavigationTest {
 
         CodeTracePanel deletePanel = panelFor(documentWithLinkedAndUnlinkedNodes(), new AtomicReference<>());
         deletePanel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
-        deletePanel.editorPanel().deleteNodeButton().doClick();
+        deletePanel.setConfirmNodeDeleteForTest(node -> true);
+        clickRowAction(deletePanel, 0, NodeRowAction.DELETE);
         assertTrue(deletePanel.editorPanel().nodeTable().getSelectionModel().isSelectionEmpty());
         assertFalse(deletePanel.editorPanel().goToLinkedButton().isEnabled());
     }
@@ -128,6 +131,14 @@ class CodeTracePanelNavigationTest {
         CodeTracePanel panel = new CodeTracePanel(controller);
         panel.reloadFromDisk();
         return panel;
+    }
+
+    private static void clickRowAction(CodeTracePanel panel, int row, NodeRowAction action) {
+        JTable table = panel.editorPanel().nodeTable();
+        Object value = table.getValueAt(row, 3);
+        Component component = table.getColumnModel().getColumn(3).getCellEditor()
+                .getTableCellEditorComponent(table, value, true, row, 3);
+        ((NodeRowActionsPanel) component).button(action).doClick();
     }
 
     private static TraceDocument documentWithLinkedAndUnlinkedNodes() {
