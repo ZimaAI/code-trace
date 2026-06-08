@@ -46,7 +46,6 @@ final class NodeRowActionsPanel extends JPanel {
         button.setBorderPainted(false);
         button.setContentAreaFilled(false);
         button.setMargin(com.intellij.util.ui.JBUI.insets(1));
-        button.setEnabled(interactive);
         if (interactive) {
             button.addActionListener(event -> {
                 if (node != null) {

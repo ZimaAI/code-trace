@@ -9,6 +9,7 @@ import javax.swing.table.TableCellEditor;
 
 final class NodeRowActionsEditor extends AbstractCellEditor implements TableCellEditor {
     private final NodeRowActionsPanel panel;
+    private TraceNode currentNode;
 
     NodeRowActionsEditor(BiConsumer<NodeRowAction, TraceNode> actionHandler) {
         panel = new NodeRowActionsPanel(true, (action, node) -> {
@@ -19,15 +20,14 @@ final class NodeRowActionsEditor extends AbstractCellEditor implements TableCell
 
     @Override
     public Object getCellEditorValue() {
-        return null;
+        return currentNode;
     }
 
     @Override
     public Component getTableCellEditorComponent(
             JTable table, Object value, boolean isSelected, int row, int column) {
-        if (value instanceof TraceNode node) {
-            panel.setNode(node);
-        }
+        currentNode = value instanceof TraceNode node ? node : null;
+        panel.setNode(currentNode);
         panel.setBackground(table.getSelectionBackground());
         return panel;
     }
