@@ -36,11 +36,13 @@ public final class TraceEditorPanel {
     private final JButton setAsSourceButton = new JButton("Set as Source", AllIcons.Actions.PinTab);
     private final JButton linkToHereButton = new JButton("Link To Here", AllIcons.General.LinkDropTriangle);
     private final JButton unlinkButton = new JButton("Unlink", AllIcons.Actions.DeleteTag);
-    private final JButton goToLinkedButton = new JButton("Go To Linked", AllIcons.Actions.Find);
+    private final JButton goToLinkedButton = new JButton("Go to Linked Node", AllIcons.Actions.Find);
     private final JButton expandAllButton = new JButton("Expand All", AllIcons.Actions.Expandall);
     private final JButton collapseAllButton = new JButton("Collapse All", AllIcons.Actions.Collapseall);
     private final JLabel linkStatus = new JLabel("Link source: none");
     private final JPanel nodeToolbar = new JPanel(new WrapLayout(WrapLayout.LEFT, 4, 4));
+    private final JPanel nodeMainPanel = new JPanel(new BorderLayout());
+    private final JPanel notesPanel = new JPanel(new BorderLayout());
     private final JPanel root = new JPanel(new BorderLayout());
     private FilteredNodeTableModel filteredModel;
     private CollapseIndicatorRenderer collapseRenderer;
@@ -60,7 +62,7 @@ public final class TraceEditorPanel {
         nodeTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
         JPanel traceNotePanel = new JPanel(new BorderLayout());
-        traceNotePanel.setBorder(JBUI.Borders.empty(0, 0, 6, 0));
+        traceNotePanel.setBorder(JBUI.Borders.empty(0, 0, 8, 0));
         traceNotePanel.add(new JBScrollPane(traceNote), BorderLayout.CENTER);
         traceNotePanel.add(saveTraceNoteButton, BorderLayout.SOUTH);
 
@@ -72,44 +74,30 @@ public final class TraceEditorPanel {
         nodeNotePanel.add(new JBScrollPane(nodeNote), BorderLayout.CENTER);
         nodeNotePanel.add(saveNodeNoteButton, BorderLayout.SOUTH);
 
-        JSplitPane split = new JSplitPane(
-                JSplitPane.VERTICAL_SPLIT,
-                new JBScrollPane(nodeTable),
-                nodeNotePanel);
-        split.setResizeWeight(0.7d);
+        JSplitPane notesSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, traceNotePanel, nodeNotePanel);
+        notesSplit.setResizeWeight(0.45d);
+        notesPanel.add(notesSplit, BorderLayout.CENTER);
 
         linkStatus.setBorder(JBUI.Borders.empty(3, 6, 2, 6));
 
-        JPanel content = new JPanel(new BorderLayout());
-        content.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
-        content.add(nodeToolbar, BorderLayout.NORTH);
-        content.add(split, BorderLayout.CENTER);
-        content.add(linkStatus, BorderLayout.SOUTH);
+        nodeMainPanel.setBorder(JBUI.Borders.empty(4, 0, 0, 8));
+        nodeMainPanel.add(nodeToolbar, BorderLayout.NORTH);
+        nodeMainPanel.add(new JBScrollPane(nodeTable), BorderLayout.CENTER);
+        nodeMainPanel.add(linkStatus, BorderLayout.SOUTH);
 
-        root.add(traceNotePanel, BorderLayout.NORTH);
-        root.add(content, BorderLayout.CENTER);
+        JSplitPane editorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, nodeMainPanel, notesPanel);
+        editorSplit.setResizeWeight(0.78d);
+        root.add(editorSplit, BorderLayout.CENTER);
 
         addTooltips();
     }
 
     private void configureNodeToolbar() {
-        // Row 1: Node editing actions
-        nodeToolbar.add(editNodeButton);
-        nodeToolbar.add(deleteNodeButton);
-        nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
-        // Row 1 continued: Ordering
-        nodeToolbar.add(moveUpButton);
-        nodeToolbar.add(moveDownButton);
-        nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
-        // Row 1 continued: Link source selection
         nodeToolbar.add(setAsSourceButton);
         nodeToolbar.add(linkToHereButton);
         nodeToolbar.add(unlinkButton);
-        nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
-        // Row 1 continued: Navigation
         nodeToolbar.add(goToLinkedButton);
         nodeToolbar.add(new JSeparator(SwingConstants.VERTICAL));
-        // Row 1 continued: Expand/Collapse All
         nodeToolbar.add(expandAllButton);
         nodeToolbar.add(collapseAllButton);
     }
@@ -207,6 +195,14 @@ public final class TraceEditorPanel {
 
     JPanel nodeToolbar() {
         return nodeToolbar;
+    }
+
+    JPanel nodeMainPanel() {
+        return nodeMainPanel;
+    }
+
+    JPanel notesPanel() {
+        return notesPanel;
     }
 
     JButton goToLinkedButton() {

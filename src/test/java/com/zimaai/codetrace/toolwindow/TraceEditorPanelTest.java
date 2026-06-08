@@ -43,8 +43,36 @@ class TraceEditorPanelTest {
         assertEquals(WrapLayout.class, layout.getClass());
 
         JButton goToLinked = panel.goToLinkedButton();
-        assertEquals("Go To Linked", goToLinked.getText());
+        assertEquals("Go to Linked Node", goToLinked.getText());
         assertFalse(goToLinked.isEnabled());
+    }
+
+    @Test
+    void nodeToolbarContainsOnlyLinkAndViewActions() {
+        TraceEditorPanel panel = new TraceEditorPanel();
+        JPanel toolbar = panel.nodeToolbar();
+
+        assertFalse(toolbarContainsButtonText(toolbar, "Edit Node"));
+        assertFalse(toolbarContainsButtonText(toolbar, "Delete Node"));
+        assertFalse(toolbarContainsButtonText(toolbar, "Move Up"));
+        assertFalse(toolbarContainsButtonText(toolbar, "Move Down"));
+        assertTrue(toolbarContainsButtonText(toolbar, "Set as Source"));
+        assertTrue(toolbarContainsButtonText(toolbar, "Link To Here"));
+        assertTrue(toolbarContainsButtonText(toolbar, "Unlink"));
+        assertTrue(toolbarContainsButtonText(toolbar, "Go to Linked Node"));
+        assertTrue(toolbarContainsButtonText(toolbar, "Expand All"));
+        assertTrue(toolbarContainsButtonText(toolbar, "Collapse All"));
+    }
+
+    @Test
+    void exposesSeparateNodeMainAndNotesPanels() {
+        TraceEditorPanel panel = new TraceEditorPanel();
+
+        assertNotNull(panel.nodeMainPanel());
+        assertNotNull(panel.notesPanel());
+        assertTrue(panel.nodeMainPanel().isAncestorOf(panel.nodeTable()));
+        assertTrue(panel.notesPanel().isAncestorOf(panel.traceNote()));
+        assertTrue(panel.notesPanel().isAncestorOf(panel.nodeNote()));
     }
 
     @Test
@@ -112,6 +140,15 @@ class TraceEditorPanelTest {
 
         assertNotNull(panel.getFilteredModel());
         assertTrue(panel.nodeTable().getModel() instanceof FilteredNodeTableModel);
+    }
+
+    private static boolean toolbarContainsButtonText(JPanel toolbar, String text) {
+        for (java.awt.Component component : toolbar.getComponents()) {
+            if (component instanceof JButton button && text.equals(button.getText())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private NodeTableModel createTestSourceModel() {
