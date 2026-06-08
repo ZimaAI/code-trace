@@ -34,11 +34,13 @@ class CodeTracePanelColumnWidthTest {
 
         JTable table = panel.editorPanel().nodeTable();
         TableColumnModel columns = table.getColumnModel();
+        int initialViewportWidth = ((JViewport) table.getParent()).getWidth();
 
         columns.getColumn(0).setPreferredWidth(120);
         columns.getColumn(0).setWidth(120);
-        columns.getColumn(1).setPreferredWidth(700);
-        columns.getColumn(1).setWidth(700);
+        int adjustedNameWidth = Math.max(240, initialViewportWidth - 200);
+        columns.getColumn(1).setPreferredWidth(adjustedNameWidth);
+        columns.getColumn(1).setWidth(adjustedNameWidth);
         layoutRecursively(panel.getComponent());
 
         int beforeNumberWidth = columns.getColumn(0).getWidth();
