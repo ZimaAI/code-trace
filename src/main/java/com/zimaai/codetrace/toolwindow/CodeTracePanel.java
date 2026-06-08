@@ -433,6 +433,10 @@ public final class CodeTracePanel {
         if (selectedNodeId == null) {
             return;
         }
+        if (!controller.hasValidLinkForNode(selectedNodeId)) {
+            updateLinkStatus();
+            return;
+        }
         controller.unlinkNode(selectedNodeId);
         rebuildView();
         showFeedback("链接已取消");
@@ -489,9 +493,30 @@ public final class CodeTracePanel {
             return;
         }
         selectedNodeId = node.id();
+        int previousIndex = currentNodeIndex(node.id());
         controller.moveNode(node.id(), offset);
         rebuildView();
-        showFeedback(offset < 0 ? "节点已上移" : "节点已下移");
+        TraceNode moved = findNodeById(node.id());
+        int movedIndex = currentNodeIndex(node.id());
+        boolean movedInRequestedDirection = moved != null
+                && ((offset < 0 && movedIndex >= 0 && movedIndex < previousIndex)
+                        || (offset > 0 && movedIndex > previousIndex));
+        if (movedInRequestedDirection) {
+            showFeedback(offset < 0 ? "节点已上移" : "节点已下移");
+        }
+    }
+
+    private int currentNodeIndex(String nodeId) {
+        TraceDocument document = controller.state().currentDocument();
+        if (nodeId == null || document == null) {
+            return -1;
+        }
+        for (int index = 0; index < document.nodes().size(); index++) {
+            if (nodeId.equals(document.nodes().get(index).id())) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private void goToLinked() {
@@ -726,17 +751,20 @@ public final class CodeTracePanel {
     }
 
     private void updateLinkStatus() {
+        editorPanel.linkStatus().setText(linkStatusText());
+    }
+
+    private String linkStatusText() {
         TraceNode source = findNodeById(controller.state().pendingLinkSourceId());
         if (source == null) {
-            editorPanel.linkStatus().setText("链接源：未设置，请先选中节点并点击 Set as Source");
-            return;
+            return "链接源：未设置，请先选中节点并点击 Set as Source";
         }
         String number = currentNumberMap.getOrDefault(source.id(), "?");
-        editorPanel.linkStatus().setText("链接源：#" + number + " " + source.displayName());
+        return "链接源：#" + number + " " + source.displayName();
     }
 
     private void showFeedback(String message) {
-        editorPanel.linkStatus().setText(message);
+        editorPanel.linkStatus().setText(message + " | " + linkStatusText());
     }
 
     private void configureActionColumn() {
@@ -834,7 +862,7 @@ public final class CodeTracePanel {
         editorPanel.moveDownButton().setEnabled(hasSelection);
         editorPanel.setAsSourceButton().setEnabled(hasSelection);
         editorPanel.linkToHereButton().setEnabled(hasSelection && hasPendingSource);
-        editorPanel.unlinkButton().setEnabled(hasSelection);
+        editorPanel.unlinkButton().setEnabled(hasSelection && selectedNodeId != null && controller.hasValidLinkForNode(selectedNodeId));
         editorPanel.goToLinkedButton().setEnabled(hasLinkedNodes());
     }
 

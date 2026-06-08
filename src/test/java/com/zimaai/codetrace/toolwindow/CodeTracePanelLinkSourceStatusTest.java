@@ -1,5 +1,6 @@
 package com.zimaai.codetrace.toolwindow;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,6 +12,7 @@ import com.zimaai.codetrace.storage.TraceStorageService;
 import java.awt.Component;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
+import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -80,6 +82,7 @@ class CodeTracePanelLinkSourceStatusTest {
         panel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
         assertFalse(panel.editorPanel().linkToHereButton().isEnabled());
         assertTrue(panel.editorPanel().linkStatus().getText().contains("节点已删除"));
+        assertTrue(panel.editorPanel().linkStatus().getText().contains("链接源：未设置"));
     }
 
     @Test
@@ -93,12 +96,57 @@ class CodeTracePanelLinkSourceStatusTest {
     }
 
     @Test
+    void feedbackPreservesCurrentLinkSourceStatus() {
+        CodeTracePanel panel = panelFor(documentWithTwoNodes());
+        panel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
+        panel.editorPanel().setAsSourceButton().doClick();
+
+        panel.editorPanel().traceNote().setText("updated");
+        panel.editorPanel().saveTraceNoteButton().doClick();
+
+        assertTrue(panel.editorPanel().linkStatus().getText().contains("Trace Note 已保存"));
+        assertTrue(panel.editorPanel().linkStatus().getText().contains("链接源：#1 first"));
+    }
+
+    @Test
     void moveRowActionShowsFeedback() {
         CodeTracePanel panel = panelFor(documentWithTwoNodes());
 
         clickRowAction(panel, 0, NodeRowAction.MOVE_DOWN);
 
         assertTrue(panel.editorPanel().linkStatus().getText().contains("节点已下移"));
+        assertEquals(List.of("node-2", "node-1"), nodeIds(panel));
+    }
+
+    @Test
+    void unlinkIsDisabledForUnlinkedNodeAndDoesNotShowCanceledFeedback() {
+        CodeTracePanel panel = panelFor(documentWithTwoNodes());
+
+        panel.editorPanel().nodeTable().setRowSelectionInterval(0, 0);
+
+        assertFalse(panel.editorPanel().unlinkButton().isEnabled());
+        panel.editorPanel().unlinkButton().doClick();
+        assertFalse(panel.editorPanel().linkStatus().getText().contains("链接已取消"));
+    }
+
+    @Test
+    void moveUpFirstRowDoesNotMoveOrShowSuccessFeedback() {
+        CodeTracePanel panel = panelFor(documentWithTwoNodes());
+
+        clickRowAction(panel, 0, NodeRowAction.MOVE_UP);
+
+        assertEquals(List.of("node-1", "node-2"), nodeIds(panel));
+        assertFalse(panel.editorPanel().linkStatus().getText().contains("节点已上移"));
+    }
+
+    @Test
+    void moveDownLastRowDoesNotMoveOrShowSuccessFeedback() {
+        CodeTracePanel panel = panelFor(documentWithTwoNodes());
+
+        clickRowAction(panel, 1, NodeRowAction.MOVE_DOWN);
+
+        assertEquals(List.of("node-1", "node-2"), nodeIds(panel));
+        assertFalse(panel.editorPanel().linkStatus().getText().contains("节点已下移"));
     }
 
     private CodeTracePanel panelFor(TraceDocument document) {
@@ -127,6 +175,22 @@ class CodeTracePanelLinkSourceStatusTest {
         }
         Component component = table.getEditorComponent();
         ((NodeRowActionsPanel) component).button(action).doClick();
+    }
+
+    private static List<String> nodeIds(CodeTracePanel panel) {
+        return controller(panel).state().currentDocument().nodes().stream()
+                .map(TraceNode::id)
+                .toList();
+    }
+
+    private static CodeTraceController controller(CodeTracePanel panel) {
+        try {
+            Field field = CodeTracePanel.class.getDeclaredField("controller");
+            field.setAccessible(true);
+            return (CodeTraceController) field.get(panel);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError(exception);
+        }
     }
 
     private static TraceDocument documentWithTwoNodes() {

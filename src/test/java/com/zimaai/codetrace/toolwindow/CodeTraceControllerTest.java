@@ -72,6 +72,22 @@ class CodeTraceControllerTest {
     }
 
     @Test
+    void moveNodeAtBoundaryKeepsOrder() {
+        TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
+        storage.save("trace-boundary.json", documentWithThreeNodes());
+        CodeTraceController controller = new CodeTraceController(storage, node -> true);
+        controller.load("trace-boundary.json");
+
+        assertEquals(0, controller.moveNode("node-1", -1));
+        assertEquals(List.of("node-1", "node-2", "node-3"),
+                controller.state().currentDocument().nodes().stream().map(TraceNode::id).toList());
+
+        assertEquals(2, controller.moveNode("node-3", 1));
+        assertEquals(List.of("node-1", "node-2", "node-3"),
+                controller.state().currentDocument().nodes().stream().map(TraceNode::id).toList());
+    }
+
+    @Test
     void rejectsSecondLinkForAlreadyLinkedNode() {
         TraceStorageService storage = new TraceStorageService(tempDir, new TraceJsonMapper());
         storage.save("trace-3.json", documentWithThreeNodes());

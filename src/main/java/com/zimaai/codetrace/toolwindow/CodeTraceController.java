@@ -134,6 +134,16 @@ public final class CodeTraceController {
         }
     }
 
+    public boolean hasValidLinkForNode(String nodeId) {
+        TraceDocument document = requireDocument();
+        Set<String> nodeIds = document.nodes().stream()
+                .map(TraceNode::id)
+                .collect(Collectors.toSet());
+        return document.links().stream()
+                .anyMatch(link -> TraceDocumentEditor.isLinkValid(link, nodeIds)
+                        && (nodeId.equals(link.sourceNodeId()) || nodeId.equals(link.targetNodeId())));
+    }
+
     public int moveNode(String nodeId, int offset) {
         TraceDocument updated = moveInternal(requireDocument(), nodeId, offset, Instant.now());
         persist(updated);
@@ -297,13 +307,12 @@ public final class CodeTraceController {
         // 从原列表中移除子树
         nodes.removeAll(subtree);
 
-        // 计算目标位置
         int targetIndex = sourceIndex + offset;
-        if (targetIndex < 0 || targetIndex >= nodes.size()) {
-            // 如果目标位置超出范围，添加到末尾
+        if (targetIndex < 0 || targetIndex > nodes.size()) {
+            nodes.addAll(sourceIndex, subtree);
+        } else if (targetIndex >= nodes.size()) {
             nodes.addAll(subtree);
         } else {
-            // 在目标位置插入子树
             nodes.addAll(targetIndex, subtree);
         }
 
