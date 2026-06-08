@@ -38,6 +38,10 @@ class FilteredNodeTableModelTest {
         assertEquals("操作", filteredModel.getColumnName(3));
         assertEquals(TraceNode.class, filteredModel.getColumnClass(3));
         assertEquals(nodes.get(3), filteredModel.getValueAt(1, 3));
+        assertTrue(filteredModel.isCellEditable(1, 3));
+        assertFalse(filteredModel.isCellEditable(1, 0));
+        assertFalse(filteredModel.isCellEditable(1, 1));
+        assertFalse(filteredModel.isCellEditable(1, 2));
     }
 
     @Test

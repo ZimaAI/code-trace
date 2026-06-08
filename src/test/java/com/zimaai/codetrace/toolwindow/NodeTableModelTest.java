@@ -17,6 +17,10 @@ class NodeTableModelTest {
         assertEquals("操作", model.getColumnName(3));
         assertEquals(TraceNode.class, model.getColumnClass(3));
         assertEquals(nodes.get(0), model.getValueAt(0, 3));
+        assertTrue(model.isCellEditable(0, 3));
+        assertFalse(model.isCellEditable(0, 0));
+        assertFalse(model.isCellEditable(0, 1));
+        assertFalse(model.isCellEditable(0, 2));
     }
 
     @Test

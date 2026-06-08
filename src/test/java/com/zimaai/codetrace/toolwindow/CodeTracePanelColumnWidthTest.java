@@ -35,17 +35,18 @@ class CodeTracePanelColumnWidthTest {
         JTable table = panel.editorPanel().nodeTable();
         TableColumnModel columns = table.getColumnModel();
         int initialViewportWidth = ((JViewport) table.getParent()).getWidth();
+        int initialActionWidth = columns.getColumn(3).getWidth();
 
         columns.getColumn(0).setPreferredWidth(120);
         columns.getColumn(0).setWidth(120);
-        int adjustedNameWidth = Math.max(240, initialViewportWidth - 200);
+        int adjustedNameWidth = Math.max(240, initialViewportWidth - initialActionWidth - 360);
         columns.getColumn(1).setPreferredWidth(adjustedNameWidth);
         columns.getColumn(1).setWidth(adjustedNameWidth);
         layoutRecursively(panel.getComponent());
 
         int beforeNumberWidth = columns.getColumn(0).getWidth();
         int beforeNameWidth = columns.getColumn(1).getWidth();
-        int beforeLinkWidth = columns.getColumn(2).getWidth();
+        int beforeActionWidth = columns.getColumn(3).getWidth();
 
         JButton collapseAll = panel.editorPanel().collapseAllButton();
         collapseAll.doClick();
@@ -56,11 +57,14 @@ class CodeTracePanelColumnWidthTest {
         assertEquals(beforeNameWidth, savedColumnWidths(panel)[1]);
         assertEquals(beforeNumberWidth, table.getColumnModel().getColumn(0).getWidth());
         assertEquals(beforeNameWidth, table.getColumnModel().getColumn(1).getWidth());
-        assertEquals(viewportWidth - beforeNumberWidth - beforeNameWidth, table.getColumnModel().getColumn(2).getWidth());
+        assertEquals(beforeActionWidth, table.getColumnModel().getColumn(3).getWidth());
+        assertEquals(
+                viewportWidth - beforeNumberWidth - beforeNameWidth - beforeActionWidth,
+                table.getColumnModel().getColumn(2).getWidth());
     }
 
     @Test
-    void stretchesLastColumnToFillViewportWidth() {
+    void stretchesLinkColumnToFillViewportWidthWhileActionColumnStaysFixed() {
         CodeTracePanel panel = panelFor(documentWithManyExpandedChildren());
         panel.getComponent().setSize(1200, 300);
         layoutRecursively(panel.getComponent());
@@ -77,10 +81,13 @@ class CodeTracePanelColumnWidthTest {
         int viewportWidth = ((JViewport) table.getParent()).getWidth();
         int actualTotalWidth = columns.getColumn(0).getWidth()
                 + columns.getColumn(1).getWidth()
-                + columns.getColumn(2).getWidth();
+                + columns.getColumn(2).getWidth()
+                + columns.getColumn(3).getWidth();
 
         assertEquals(viewportWidth, actualTotalWidth);
         assertFalse(columns.getColumn(2).getResizable());
+        assertFalse(columns.getColumn(3).getResizable());
+        assertEquals(columns.getColumn(3).getPreferredWidth(), columns.getColumn(3).getWidth());
     }
 
     private CodeTracePanel panelFor(TraceDocument document) {

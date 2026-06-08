@@ -189,6 +189,11 @@ public class FilteredNodeTableModel extends AbstractTableModel {
         return sourceModel.getColumnName(column);
     }
 
+    @Override
+    public boolean isCellEditable(int rowIndex, int columnIndex) {
+        return sourceModel.isCellEditable(rowIndex, columnIndex);
+    }
+
     /**
      * 获取源模型
      */

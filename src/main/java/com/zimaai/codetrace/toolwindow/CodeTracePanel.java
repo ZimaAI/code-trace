@@ -36,6 +36,7 @@ public final class CodeTracePanel {
     private static final List<String> TOP_TOOLBAR_BUTTON_LABELS = List.of("Refresh", "Toggle Files");
     private static final float DEFAULT_FILE_LIST_PROPORTION = 0.25f;
     private static final String FILE_LIST_TOGGLE_BUTTON_NAME = "file-list-toggle-button";
+    private static final int ACTION_COLUMN_WIDTH = 112;
     private final CodeTraceController controller;
     private final JPanel root = new JPanel(new BorderLayout());
     private final Map<String, JButton> buttons = new HashMap<>();
@@ -672,18 +673,16 @@ public final class CodeTracePanel {
                             () -> numberMap,
                             () -> controller.state().focusedNodeId(),
                             () -> controller.state().pendingLinkSourceId()));
-            editorPanel.nodeTable().getColumnModel().getColumn(3).setResizable(false);
-            editorPanel.nodeTable().getColumnModel().getColumn(3).setCellRenderer(new NodeRowActionsRenderer());
-            editorPanel.nodeTable().getColumnModel().getColumn(3).setCellEditor(
-                    new NodeRowActionsEditor(this::handleRowAction));
+            configureActionColumn();
             // 设置列宽比例 编号:节点名称:链接关系 = 1:5:1
             // 只在首次加载时设置默认宽度，之后恢复用户调整的宽度
             if (!columnWidthsInitialized) {
                 int totalWidth = editorPanel.nodeTable().getWidth();
                 if (totalWidth <= 0) {
-                    totalWidth = 420; // 默认总宽度
+                    totalWidth = 560; // 默认总宽度
                 }
-                int unit = totalWidth / 7;
+                int flexibleWidth = Math.max(420, totalWidth - ACTION_COLUMN_WIDTH);
+                int unit = flexibleWidth / 7;
                 editorPanel.nodeTable().getColumnModel().getColumn(0).setPreferredWidth(unit);
                 editorPanel.nodeTable().getColumnModel().getColumn(0).setWidth(unit);
                 editorPanel.nodeTable().getColumnModel().getColumn(1).setPreferredWidth(unit * 5);
@@ -706,8 +705,19 @@ public final class CodeTracePanel {
         refreshButtons();
     }
 
+    private void configureActionColumn() {
+        javax.swing.table.TableColumn actionColumn = editorPanel.nodeTable().getColumnModel().getColumn(3);
+        actionColumn.setMinWidth(ACTION_COLUMN_WIDTH);
+        actionColumn.setPreferredWidth(ACTION_COLUMN_WIDTH);
+        actionColumn.setMaxWidth(ACTION_COLUMN_WIDTH);
+        actionColumn.setWidth(ACTION_COLUMN_WIDTH);
+        actionColumn.setResizable(false);
+        actionColumn.setCellRenderer(new NodeRowActionsRenderer());
+        actionColumn.setCellEditor(new NodeRowActionsEditor(this::handleRowAction));
+    }
+
     private void saveColumnWidths() {
-        if (editorPanel.nodeTable().getColumnModel().getColumnCount() >= 3) {
+        if (editorPanel.nodeTable().getColumnModel().getColumnCount() >= 4) {
             savedColumnWidths = new int[] {
                 editorPanel.nodeTable().getColumnModel().getColumn(0).getWidth(),
                 editorPanel.nodeTable().getColumnModel().getColumn(1).getWidth()
@@ -718,7 +728,7 @@ public final class CodeTracePanel {
     private void restoreColumnWidths() {
         if (savedColumnWidths != null
                 && savedColumnWidths.length >= 2
-                && editorPanel.nodeTable().getColumnModel().getColumnCount() >= 3) {
+                && editorPanel.nodeTable().getColumnModel().getColumnCount() >= 4) {
             restoringColumnWidths = true;
             try {
                 editorPanel.nodeTable().getColumnModel().getColumn(0).setWidth(savedColumnWidths[0]);
@@ -734,7 +744,7 @@ public final class CodeTracePanel {
 
     private void stretchLastColumnToViewport() {
         JTable table = editorPanel.nodeTable();
-        if (table.getColumnModel().getColumnCount() < 3) {
+        if (table.getColumnModel().getColumnCount() < 4) {
             return;
         }
         if (!(table.getParent() instanceof JViewport viewport)) {
@@ -747,12 +757,13 @@ public final class CodeTracePanel {
 
         int firstWidth = table.getColumnModel().getColumn(0).getWidth();
         int secondWidth = table.getColumnModel().getColumn(1).getWidth();
-        int lastWidth = Math.max(0, viewportWidth - firstWidth - secondWidth);
+        int actionWidth = table.getColumnModel().getColumn(3).getWidth();
+        int linkWidth = Math.max(0, viewportWidth - firstWidth - secondWidth - actionWidth);
 
         adjustingFlexibleColumn = true;
         try {
-            table.getColumnModel().getColumn(2).setWidth(lastWidth);
-            table.getColumnModel().getColumn(2).setPreferredWidth(lastWidth);
+            table.getColumnModel().getColumn(2).setWidth(linkWidth);
+            table.getColumnModel().getColumn(2).setPreferredWidth(linkWidth);
         } finally {
             adjustingFlexibleColumn = false;
         }

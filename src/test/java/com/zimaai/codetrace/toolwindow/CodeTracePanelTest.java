@@ -54,13 +54,19 @@ class CodeTracePanelTest {
     }
 
     @Test
-    void hidesActionModelColumnUntilRowActionUiIsInstalled() throws Exception {
+    void installsActionColumnInTableView() throws Exception {
         CodeTracePanel panel = panelFor(documentWithOneNode());
         TraceEditorPanel editorPanel = editorPanel(panel);
 
         assertEquals(4, editorPanel.nodeTable().getModel().getColumnCount());
-        assertEquals(3, editorPanel.nodeTable().getColumnModel().getColumnCount());
-        assertEquals("链接关系", editorPanel.nodeTable().getColumnModel().getColumn(2).getHeaderValue());
+        assertEquals(4, editorPanel.nodeTable().getColumnModel().getColumnCount());
+        assertEquals("操作", editorPanel.nodeTable().getColumnModel().getColumn(3).getHeaderValue());
+        assertEquals(
+                NodeRowActionsRenderer.class,
+                editorPanel.nodeTable().getColumnModel().getColumn(3).getCellRenderer().getClass());
+        assertEquals(
+                NodeRowActionsEditor.class,
+                editorPanel.nodeTable().getColumnModel().getColumn(3).getCellEditor().getClass());
     }
 
     private static String findTopToolbarLabel(String label) {
